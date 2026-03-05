@@ -1,0 +1,1 @@
+"""FichaFacil MVP - Backend Application"""

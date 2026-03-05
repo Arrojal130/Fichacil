@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="description" content="FichaFácil - Fichar entrada y salida">
+    
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <title>Fichar - FichaFácil</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2563eb',
+                        secondary: '#1e40af',
+                        entrada: '#16a34a',
+                        salida: '#dc2626'
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        .btn-fichar {
+            width: 90%;
+            margin: 0 auto;
+            min-height: 80px;
+            font-size: 28px;
+            font-weight: 700;
+            transition: transform 0.1s, box-shadow 0.2s;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        .btn-fichar:active {
+            transform: scale(0.96);
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .btn-fichar:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .pin-input {
+            font-size: 2.5rem;
+            letter-spacing: 1rem;
+            text-align: center;
+            -webkit-text-security: disc;
+            font-family: monospace;
+            width: 200px;
+        }
+        .pin-input::placeholder {
+            letter-spacing: 0.8rem;
+            font-size: 2rem;
+        }
+        body {
+            overscroll-behavior-y: contain;
+        }
+        .hidden { display: none !important; }
+        
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        .spinner-dark {
+            border-color: rgba(0, 0, 0, 0.2);
+            border-top-color: #2563eb;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Toast de éxito mejorado */
+        .toast-success {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #16a34a;
+            color: white;
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 9999;
+            animation: slideDown 0.3s ease-out;
+        }
+        @keyframes slideDown {
+            from { transform: translateX(-50%) translateY(-100%); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    
+    <!-- Header -->
+    <header class="bg-primary text-white p-4 shadow-lg">
+        <div class="container mx-auto max-w-md flex items-center">
+            <a href="/" class="text-2xl mr-3">←</a>
+            <div>
+                <h1 class="text-xl font-bold">FichaFácil</h1>
+                <p class="text-blue-100 text-sm">Registro de jornada</p>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Main Container -->
+    <div class="container mx-auto px-4 py-6 max-w-md">
+        
+        <!-- Step 1: Select Business -->
+        <div id="step-negocio" class="space-y-4">
+            <div class="text-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-800">¿En qué negocio trabajas?</h2>
+            </div>
+            
+            <div class="relative">
+                <input type="text" 
+                       id="search-negocio" 
+                       placeholder="Buscar negocio..."
+                       class="w-full p-4 text-lg border-2 border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                <div class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400">🔍</div>
+            </div>
+            
+            <div id="negocios-list" class="space-y-2">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+        
+        <!-- Step 2: Enter PIN -->
+        <div id="step-pin" class="hidden space-y-6">
+            <div class="text-center">
+                <div id="negocio-selected" class="text-lg font-semibold text-primary mb-2"></div>
+                <button id="change-negocio" class="text-gray-500 underline text-sm">Cambiar negocio</button>
+            </div>
+            
+            <div class="text-center">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Introduce tu PIN</h2>
+                <div class="flex items-center justify-center gap-2">
+                    <input type="password" 
+                           id="pin-input" 
+                           maxlength="4" 
+                           inputmode="numeric" 
+                           pattern="[0-9]{4}"
+                           autocomplete="one-time-code"
+                           placeholder="••••"
+                           class="pin-input p-4 border-2 border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                    <button id="toggle-pin" class="text-gray-500 text-2xl p-2" type="button">👁</button>
+                </div>
+                <p class="text-sm text-gray-500 mt-3">PIN de 4 dígitos</p>
+            </div>
+            
+            <button id="btn-validar-pin" 
+                    class="w-full bg-primary text-white p-4 rounded-xl font-semibold text-lg disabled:opacity-50"
+                    disabled>
+                Continuar
+            </button>
+        </div>
+        
+        <!-- Step 3: Clock In/Out -->
+        <div id="step-fichar" class="hidden space-y-6">
+            <div class="text-center">
+                <div id="empleado-nombre" class="text-lg font-semibold text-primary"></div>
+                <div id="negocio-nombre-final" class="text-gray-600"></div>
+            </div>
+            
+            <!-- Last Fichaje Info -->
+            <div id="last-fichaje" class="bg-gray-100 rounded-xl p-4 text-center hidden">
+                <div class="text-sm text-gray-600">Último fichaje:</div>
+                <div id="last-fichaje-info" class="font-semibold"></div>
+            </div>
+            
+            <!-- Geolocation Status -->
+            <div id="geoloc-status" class="text-center text-sm">
+                <span class="text-gray-500">📍 Obteniendo ubicación...</span>
+            </div>
+            
+            <!-- Clock Buttons -->
+            <div class="space-y-6 flex flex-col items-center">
+                <button id="btn-entrada" 
+                        class="btn-fichar bg-entrada hover:bg-green-700 text-white rounded-2xl shadow-lg flex items-center justify-center gap-4">
+                    <span class="text-5xl">🚪</span>
+                    <span id="btn-entrada-text">ENTRADA</span>
+                </button>
+                
+                <button id="btn-salida" 
+                        class="btn-fichar bg-salida hover:bg-red-700 text-white rounded-2xl shadow-lg flex items-center justify-center gap-4">
+                    <span class="text-5xl">🏠</span>
+                    <span id="btn-salida-text">SALIDA</span>
+                </button>
+            </div>
+            
+            <!-- Pending Corrections -->
+            <div id="correcciones-pendientes" class="hidden bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                <div class="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
+                    <span>⚠️</span>
+                    <span>Correcciones pendientes de tu aprobación</span>
+                </div>
+                <div id="correcciones-list" class="space-y-3">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+            
+            <!-- Historial de Fichajes -->
+            <div id="historial-fichajes" class="bg-white rounded-xl shadow overflow-hidden">
+                <button id="btn-toggle-historial" class="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors">
+                    <span class="font-semibold text-gray-700">📋 Mi historial (últimos 7 días)</span>
+                    <span id="historial-arrow" class="text-gray-500 transition-transform">▼</span>
+                </button>
+                <div id="historial-content" class="hidden divide-y max-h-64 overflow-y-auto">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+            
+            <button id="btn-cambiar-usuario" class="w-full text-gray-500 underline text-sm">
+                Cambiar de empleado
+            </button>
+        </div>
+        
+        <!-- Success Feedback -->
+        <div id="step-success" class="hidden text-center space-y-6 py-12">
+            <div class="text-8xl" id="success-emoji">✅</div>
+            <div class="text-2xl font-bold text-gray-800" id="success-message">¡Fichado!</div>
+            <div class="text-xl text-gray-600" id="success-time"></div>
+            <div id="success-distance" class="text-sm"></div>
+            <button id="btn-ok" class="bg-primary text-white px-8 py-4 rounded-xl font-semibold text-lg">
+                Aceptar
+            </button>
+        </div>
+        
+    </div>
+    
+    <!-- Scripts -->
+    <script src="/js/utils.js" defer></script>
+    <script src="/js/api.js" defer></script>
+    <script defer>
+        // ============================================
+        // INICIALIZACIÓN - Espera a que scripts carguen
+        // ============================================
+        console.log('[EMPLEADO] Script inline iniciado');
+        
+        function initializeEmpleado() {
+            console.log('[EMPLEADO] Verificando scripts...');
+            
+            if (typeof window.FichaFacilAPI === 'undefined' || typeof window.FichaFacilUtils === 'undefined') {
+                console.warn('[EMPLEADO] Scripts no listos, esperando 100ms...');
+                setTimeout(initializeEmpleado, 100);
+                return;
+            }
+            
+            console.log('[EMPLEADO] ✅ Scripts listos! Inicializando...');
+            startEmpleadoApp();
+        }
+        
+        function startEmpleadoApp() {
+        // Shortcuts
+        const fichajesAPI = window.FichaFacilAPI.fichajes;
+        const negociosAPI = window.FichaFacilAPI.negocios;
+        const correccionesAPI = window.FichaFacilAPI.correcciones;
+        const { getGeolocation, showToast, formatTime, formatDistance, playSound, storeLastFichaje, debounce } = window.FichaFacilUtils;
+        
+        // State
+        let selectedNegocio = null;
+        let currentPin = '';
+        let currentLocation = null;
+        let validatedEmpleado = null;
+        
+        // DOM Elements
+        const stepNegocio = document.getElementById('step-negocio');
+        const stepPin = document.getElementById('step-pin');
+        const stepFichar = document.getElementById('step-fichar');
+        const stepSuccess = document.getElementById('step-success');
+        
+        const searchInput = document.getElementById('search-negocio');
+        const negociosList = document.getElementById('negocios-list');
+        const pinInput = document.getElementById('pin-input');
+        const btnValidarPin = document.getElementById('btn-validar-pin');
+        
+        // === Favoritos System ===
+        function getFavoritos() {
+            try {
+                return JSON.parse(localStorage.getItem('fichafacil_favoritos') || '[]');
+            } catch { return []; }
+        }
+        
+        function saveFavoritos(favs) {
+            localStorage.setItem('fichafacil_favoritos', JSON.stringify(favs));
+        }
+        
+        function toggleFavorito(negocioId) {
+            const favs = getFavoritos();
+            const idx = favs.indexOf(negocioId);
+            if (idx >= 0) {
+                favs.splice(idx, 1);
+            } else {
+                favs.push(negocioId);
+            }
+            saveFavoritos(favs);
+        }
+        
+        function isFavorito(negocioId) {
+            return getFavoritos().includes(negocioId);
+        }
+        
+        // === Step 1: Search and Select Business ===
+        
+        async function searchNegocios(query) {
+            try {
+                const negocios = await negociosAPI.search(query);
+                renderNegocios(negocios);
+            } catch (error) {
+                showToast('Error buscando negocios', 'error');
+            }
+        }
+        
+        function renderNegocios(negocios) {
+            if (negocios.length === 0) {
+                negociosList.innerHTML = '<p class="text-center text-gray-500 py-4">No se encontraron negocios</p>';
+                return;
+            }
+            
+            // Ordenar: favoritos primero
+            const favs = getFavoritos();
+            const sorted = [...negocios].sort((a, b) => {
+                const aFav = favs.includes(a.id) ? 0 : 1;
+                const bFav = favs.includes(b.id) ? 0 : 1;
+                return aFav - bFav;
+            });
+            
+            negociosList.innerHTML = sorted.map(n => {
+                const esFav = isFavorito(n.id);
+                return `
+                <div class="negocio-row flex items-center gap-2">
+                    <button class="fav-btn text-2xl p-2 transition-transform hover:scale-110" data-id="${n.id}" title="${esFav ? 'Quitar de favoritos' : 'Añadir a favoritos'}">
+                        ${esFav ? '⭐' : '☆'}
+                    </button>
+                    <button class="negocio-item flex-1 bg-white border-2 ${esFav ? 'border-yellow-400' : 'border-gray-200'} hover:border-primary rounded-xl p-4 text-left transition-colors"
+                            data-id="${n.id}" data-nombre="${n.nombre}" data-slug="${n.slug}">
+                        <div class="font-semibold text-gray-800">${n.nombre}</div>
+                    </button>
+                </div>
+            `}).join('');
+            
+            // Add click handlers for favorites
+            document.querySelectorAll('.fav-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleFavorito(parseInt(btn.dataset.id));
+                    renderNegocios(negocios); // Re-render
+                });
+            });
+            
+            // Add click handlers for selection
+            document.querySelectorAll('.negocio-item').forEach(item => {
+                item.addEventListener('click', () => selectNegocio(item.dataset));
+            });
+        }
+        
+        function selectNegocio(data) {
+            selectedNegocio = {
+                id: parseInt(data.id),
+                nombre: data.nombre,
+                slug: data.slug
+            };
+            
+            document.getElementById('negocio-selected').textContent = selectedNegocio.nombre;
+            
+            stepNegocio.classList.add('hidden');
+            stepPin.classList.remove('hidden');
+            pinInput.focus();
+        }
+        
+        // Debounced search
+        const debouncedSearch = debounce(searchNegocios, 300);
+        searchInput.addEventListener('input', (e) => debouncedSearch(e.target.value));
+        
+        // Initial load
+        searchNegocios('');
+        
+        // === Step 2: PIN Validation ===
+        
+        pinInput.addEventListener('input', (e) => {
+            // Only allow numbers, max 4 digits
+            currentPin = e.target.value.replace(/\D/g, '').slice(0, 4);
+            e.target.value = currentPin;
+            // Enable button when PIN is exactly 4 digits
+            btnValidarPin.disabled = currentPin.length !== 4;
+        });
+        
+        // Prevent non-numeric input
+        pinInput.addEventListener('keypress', (e) => {
+            if (!/[0-9]/.test(e.key) && e.key !== 'Enter') {
+                e.preventDefault();
+            }
+        });
+        
+        document.getElementById('toggle-pin').addEventListener('click', () => {
+            pinInput.type = pinInput.type === 'password' ? 'text' : 'password';
+        });
+        
+        document.getElementById('change-negocio').addEventListener('click', () => {
+            stepPin.classList.add('hidden');
+            stepNegocio.classList.remove('hidden');
+            pinInput.value = '';
+            currentPin = '';
+        });
+        
+        btnValidarPin.addEventListener('click', async () => {
+            await validateAndProceed();
+        });
+        
+        pinInput.addEventListener('keyup', async (e) => {
+            if (e.key === 'Enter' && currentPin.length === 4) {
+                await validateAndProceed();
+            }
+        });
+        
+        async function validateAndProceed() {
+            btnValidarPin.disabled = true;
+            btnValidarPin.innerHTML = '<span class="spinner"></span>Validando...';
+            
+            try {
+                // Request geolocation early
+                getGeolocation().then(loc => {
+                    currentLocation = loc;
+                    updateGeolocStatus(loc);
+                });
+                
+                // Validate PIN by getting last fichaje
+                const ultimo = await fichajesAPI.getUltimo(selectedNegocio.id, currentPin);
+                
+                // PIN is valid - proceed to clock screen
+                validatedEmpleado = { pin: currentPin };
+                
+                document.getElementById('negocio-nombre-final').textContent = selectedNegocio.nombre;
+                
+                // Show last fichaje if exists
+                if (ultimo) {
+                    document.getElementById('last-fichaje').classList.remove('hidden');
+                    document.getElementById('last-fichaje-info').textContent = 
+                        `${ultimo.tipo} - ${formatTime(ultimo.timestamp)}`;
+                }
+                
+                stepPin.classList.add('hidden');
+                stepFichar.classList.remove('hidden');
+                
+                // Load pending corrections
+                await loadCorreccionesPendientes();
+                
+            } catch (error) {
+                showToast(error.message || 'PIN incorrecto', 'error');
+                pinInput.value = '';
+                currentPin = '';
+            } finally {
+                btnValidarPin.disabled = false;
+                btnValidarPin.innerHTML = 'Continuar';
+            }
+        }
+        
+        function updateGeolocStatus(location) {
+            const status = document.getElementById('geoloc-status');
+            if (location) {
+                status.innerHTML = `<span class="text-green-600">📍 Ubicación obtenida (±${Math.round(location.accuracy)}m)</span>`;
+            } else {
+                status.innerHTML = `<span class="text-yellow-600">📍 Sin ubicación disponible</span>`;
+            }
+        }
+        
+        // === Step 3: Clock In/Out ===
+        
+        document.getElementById('btn-entrada').addEventListener('click', () => fichar('ENTRADA'));
+        document.getElementById('btn-salida').addEventListener('click', () => fichar('SALIDA'));
+        
+        async function fichar(tipo) {
+            const btn = tipo === 'ENTRADA' 
+                ? document.getElementById('btn-entrada')
+                : document.getElementById('btn-salida');
+            const btnText = tipo === 'ENTRADA' 
+                ? document.getElementById('btn-entrada-text')
+                : document.getElementById('btn-salida-text');
+            
+            const originalText = btnText.textContent;
+            btn.disabled = true;
+            btnText.innerHTML = '<span class="spinner"></span>Fichando...';
+            
+            // Disable both buttons while processing
+            document.getElementById('btn-entrada').disabled = true;
+            document.getElementById('btn-salida').disabled = true;
+            
+            try {
+                const result = await fichajesAPI.fichar(
+                    selectedNegocio.id,
+                    currentPin,
+                    tipo,
+                    currentLocation?.lat,
+                    currentLocation?.lon
+                );
+                
+                // Success! Vibrate for 3 seconds (pattern: vibrate, pause, vibrate)
+                if ('vibrate' in navigator) {
+                    navigator.vibrate([200, 100, 200, 100, 200, 100, 200, 100, 200, 100, 200, 100, 200, 100, 200, 100, 200, 100, 200]);
+                }
+                
+                // Show toast success with timestamp
+                const time = formatTime(result.timestamp);
+                showSuccessToast(`✅ Fichado ${time}`);
+                
+                playSound('success');
+                
+                // Store for offline
+                storeLastFichaje({
+                    tipo: result.tipo,
+                    timestamp: result.timestamp,
+                    negocio: selectedNegocio.nombre
+                });
+                
+                // Show success screen
+                showSuccess(result, tipo);
+                
+            } catch (error) {
+                showToast(error.message || 'Error al fichar', 'error');
+                playSound('error');
+                // Short error vibration
+                if ('vibrate' in navigator) {
+                    navigator.vibrate([100, 50, 100]);
+                }
+            } finally {
+                btn.disabled = false;
+                btnText.textContent = originalText;
+                document.getElementById('btn-entrada').disabled = false;
+                document.getElementById('btn-salida').disabled = false;
+            }
+        }
+        
+        // Toast de éxito especial con vibración
+        function showSuccessToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast-success';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideDown 0.3s ease-out reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+        
+        function showSuccess(result, tipo) {
+            stepFichar.classList.add('hidden');
+            stepSuccess.classList.remove('hidden');
+            
+            document.getElementById('success-emoji').textContent = tipo === 'ENTRADA' ? '🚪' : '🏠';
+            document.getElementById('success-message').textContent = 
+                tipo === 'ENTRADA' ? '¡Entrada registrada!' : '¡Salida registrada!';
+            document.getElementById('success-time').textContent = formatTime(result.timestamp);
+            
+            const distanceEl = document.getElementById('success-distance');
+            if (result.distancia_metros !== null) {
+                const distance = formatDistance(result.distancia_metros);
+                if (result.alerta_distancia) {
+                    distanceEl.innerHTML = `<span class="text-yellow-600">⚠️ Distancia: ${distance}</span>`;
+                } else {
+                    distanceEl.innerHTML = `<span class="text-green-600">✓ Distancia: ${distance}</span>`;
+                }
+            } else {
+                distanceEl.innerHTML = `<span class="text-gray-500">📍 Sin ubicación</span>`;
+            }
+        }
+        
+        document.getElementById('btn-ok').addEventListener('click', () => {
+            // Reset to PIN screen for another employee or same employee
+            stepSuccess.classList.add('hidden');
+            stepPin.classList.remove('hidden');
+            pinInput.value = '';
+            currentPin = '';
+            document.getElementById('last-fichaje').classList.add('hidden');
+        });
+        
+        document.getElementById('btn-cambiar-usuario').addEventListener('click', () => {
+            stepFichar.classList.add('hidden');
+            stepPin.classList.remove('hidden');
+            pinInput.value = '';
+            currentPin = '';
+            validatedEmpleado = null;
+        });
+        
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(() => console.log('✅ SW registered'))
+                .catch((err) => console.log('❌ SW failed:', err));
+        }
+        
+        // === Correcciones Pendientes ===
+        
+        async function loadCorreccionesPendientes() {
+            const container = document.getElementById('correcciones-pendientes');
+            const list = document.getElementById('correcciones-list');
+            
+            try {
+                const correcciones = await correccionesAPI.getPendientesEmpleado(selectedNegocio.id, currentPin);
+                
+                if (correcciones.length === 0) {
+                    container.classList.add('hidden');
+                    return;
+                }
+                
+                container.classList.remove('hidden');
+                list.innerHTML = correcciones.map(c => renderCorreccion(c)).join('');
+                
+                // Add event listeners
+                list.querySelectorAll('.btn-aprobar').forEach(btn => {
+                    btn.addEventListener('click', () => handleCorreccion(parseInt(btn.dataset.id), true));
+                });
+                list.querySelectorAll('.btn-rechazar').forEach(btn => {
+                    btn.addEventListener('click', () => handleCorreccion(parseInt(btn.dataset.id), false));
+                });
+                
+            } catch (error) {
+                console.error('Error loading corrections:', error);
+                // No mostrar error al usuario, simplemente ocultar sección
+                container.classList.add('hidden');
+            }
+        }
+        
+        function renderCorreccion(c) {
+            const fechaOriginal = new Date(c.timestamp_original).toLocaleString('es-ES', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+            const fechaCorregida = new Date(c.timestamp_corregido).toLocaleString('es-ES', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+            
+            return `
+                <div class="bg-white rounded-lg p-3 shadow-sm border border-yellow-100" data-correccion-id="${c.id}">
+                    <div class="text-sm text-gray-600 mb-1">
+                        <span class="font-medium">${c.creador_nombre}</span> propone corregir:
+                    </div>
+                    <div class="text-sm mb-2">
+                        <div class="line-through text-gray-400">${fechaOriginal}</div>
+                        <div class="text-green-700 font-medium">→ ${fechaCorregida}</div>
+                    </div>
+                    <div class="text-sm text-gray-600 mb-2">
+                        <span class="font-medium">Motivo:</span> ${c.motivo}
+                        ${c.detalle ? `<br><span class="italic">"${c.detalle}"</span>` : ''}
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="btn-aprobar flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-3 rounded-lg text-sm font-medium" 
+                                data-id="${c.id}">
+                            ✓ Aprobar
+                        </button>
+                        <button class="btn-rechazar flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-3 rounded-lg text-sm font-medium" 
+                                data-id="${c.id}">
+                            ✗ Rechazar
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        async function handleCorreccion(correccionId, aprobar) {
+            const container = document.querySelector(`[data-correccion-id="${correccionId}"]`);
+            if (!container) return;
+            
+            // Disable buttons
+            const buttons = container.querySelectorAll('button');
+            buttons.forEach(btn => btn.disabled = true);
+            
+            try {
+                await correccionesAPI.aprobarEmpleado(correccionId, selectedNegocio.id, currentPin, aprobar);
+                
+                showToast(aprobar ? 'Corrección aprobada' : 'Corrección rechazada', 'success');
+                
+                // Remove from UI with animation
+                container.style.transition = 'opacity 0.3s, transform 0.3s';
+                container.style.opacity = '0';
+                container.style.transform = 'translateX(-20px)';
+                setTimeout(() => {
+                    container.remove();
+                    // Hide container if no more corrections
+                    const list = document.getElementById('correcciones-list');
+                    if (list.children.length === 0) {
+                        document.getElementById('correcciones-pendientes').classList.add('hidden');
+                    }
+                }, 300);
+                
+                // Refresh last fichaje info if approved
+                if (aprobar) {
+                    try {
+                        const ultimo = await fichajesAPI.getUltimo(selectedNegocio.id, currentPin);
+                        if (ultimo) {
+                            document.getElementById('last-fichaje').classList.remove('hidden');
+                            document.getElementById('last-fichaje-info').textContent = 
+                                `${ultimo.tipo} - ${formatTime(ultimo.timestamp)}`;
+                        }
+                    } catch (e) {
+                        // Ignore
+                    }
+                }
+                
+            } catch (error) {
+                showToast(error.message || 'Error al procesar la corrección', 'error');
+                buttons.forEach(btn => btn.disabled = false);
+            }
+        }
+        
+        // === Historial de Fichajes ===
+        
+        let historialVisible = false;
+        
+        document.getElementById('btn-toggle-historial').addEventListener('click', async () => {
+            const content = document.getElementById('historial-content');
+            const arrow = document.getElementById('historial-arrow');
+            
+            historialVisible = !historialVisible;
+            
+            if (historialVisible) {
+                content.classList.remove('hidden');
+                arrow.style.transform = 'rotate(180deg)';
+                await loadHistorialFichajes();
+            } else {
+                content.classList.add('hidden');
+                arrow.style.transform = 'rotate(0deg)';
+            }
+        });
+        
+        async function loadHistorialFichajes() {
+            const content = document.getElementById('historial-content');
+            content.innerHTML = '<p class="p-4 text-center text-gray-500">Cargando...</p>';
+            
+            try {
+                const fichajes = await fichajesAPI.getHistorialEmpleado(selectedNegocio.id, currentPin, 7);
+                
+                if (fichajes.length === 0) {
+                    content.innerHTML = '<p class="p-4 text-center text-gray-500">No hay fichajes recientes</p>';
+                    return;
+                }
+                
+                content.innerHTML = fichajes.map(f => {
+                    const fecha = new Date(f.timestamp).toLocaleDateString('es-ES', {
+                        weekday: 'short', day: '2-digit', month: '2-digit'
+                    });
+                    const hora = formatTime(f.timestamp);
+                    const tipoIcon = f.tipo === 'ENTRADA' ? '🚪' : '🏠';
+                    const tipoClass = f.tipo === 'ENTRADA' ? 'text-green-600' : 'text-red-600';
+                    
+                    return `
+                        <div class="p-3 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xl">${tipoIcon}</span>
+                                <div>
+                                    <div class="font-medium ${tipoClass}">${f.tipo}</div>
+                                    <div class="text-xs text-gray-500">${fecha}</div>
+                                </div>
+                            </div>
+                            <div class="text-lg font-semibold text-gray-700">${hora}</div>
+                        </div>
+                    `;
+                }).join('');
+                
+            } catch (error) {
+                content.innerHTML = '<p class="p-4 text-center text-red-500">Error cargando historial</p>';
+            }
+        }
+        
+        console.log('[EMPLEADO] ✅ App inicializada correctamente');
+        
+        } // Fin de startEmpleadoApp()
+        
+        // ============================================
+        // Inicializar cuando los scripts estén listos
+        // ============================================
+        initializeEmpleado();
+    </script>
+</body>
+</html>

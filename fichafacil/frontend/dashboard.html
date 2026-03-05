@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="description" content="FichaFácil - Panel de administración">
+    
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <title>Dashboard - FichaFácil</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2563eb',
+                        secondary: '#1e40af'
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body { overscroll-behavior-y: contain; }
+        .hidden { display: none !important; }
+        .tab-active { border-bottom: 3px solid #2563eb; color: #2563eb; }
+        
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .spinner-dark {
+            border-color: rgba(0, 0, 0, 0.2);
+            border-top-color: #2563eb;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Status badges */
+        .badge-status {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .badge-red {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+        .badge-yellow {
+            background: #fffbeb;
+            color: #d97706;
+            border: 1px solid #fde68a;
+        }
+        .badge-green {
+            background: #f0fdf4;
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
+        }
+        .badge-week {
+            background: #eff6ff;
+            color: #2563eb;
+            border: 1px solid #bfdbfe;
+            padding: 6px 12px;
+            font-size: 14px;
+        }
+        
+        /* Tabla responsive */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .table-responsive::-webkit-scrollbar {
+            height: 6px;
+        }
+        .table-responsive::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        .table-responsive::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+        
+        /* Onboarding Wizard */
+        .onboarding-overlay {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .onboarding-card {
+            background: white;
+            border-radius: 1.5rem;
+            padding: 2rem;
+            max-width: 420px;
+            width: 100%;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        .onboarding-progress {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+        }
+        .onboarding-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            transition: all 0.3s;
+        }
+        .onboarding-dot.active {
+            background: #2563eb;
+            transform: scale(1.2);
+        }
+        .onboarding-dot.completed {
+            background: #16a34a;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    
+    <!-- Login Screen -->
+    <div id="login-screen" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+            <!-- Volver al inicio -->
+            <div class="mb-4">
+                <a href="/index.html" class="text-gray-500 hover:text-primary text-sm flex items-center gap-1">
+                    ← Volver al inicio
+                </a>
+            </div>
+            
+            <div class="text-center mb-8">
+                <div class="text-5xl mb-4">💼</div>
+                <h1 class="text-2xl font-bold text-gray-800">Panel de Administración</h1>
+                <p class="text-gray-600 mt-2">FichaFácil</p>
+            </div>
+            
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" id="login-email" required
+                           class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                    <input type="password" id="login-password" required
+                           class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                </div>
+                <button type="submit" 
+                        class="w-full bg-primary text-white p-4 rounded-xl font-semibold hover:bg-secondary transition-colors">
+                    Entrar
+                </button>
+            </form>
+            
+            <div class="mt-6 text-center space-y-2">
+                <p class="text-gray-500 text-sm">¿No tienes cuenta?</p>
+                <button id="btn-register" class="text-primary font-medium hover:underline">
+                    🏢 Registra tu negocio aquí
+                </button>
+            </div>
+            
+            <div id="login-error" class="hidden mt-4 bg-red-50 text-red-600 p-3 rounded-lg text-center"></div>
+        </div>
+    </div>
+    
+    <!-- Register Screen -->
+    <div id="register-screen" class="hidden min-h-screen p-4">
+        <div class="bg-white rounded-2xl shadow-xl p-8 max-w-md mx-auto">
+            <div class="text-center mb-6">
+                <h2 class="text-xl font-bold text-gray-800">Registrar Negocio</h2>
+            </div>
+            
+            <form id="register-form" class="space-y-4">
+                <h3 class="font-semibold text-gray-700">Datos del Negocio</h3>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Nombre del negocio</label>
+                    <input type="text" id="reg-negocio-nombre" required
+                           placeholder="Bar Pedro"
+                           class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Identificador (URL)</label>
+                    <input type="text" id="reg-negocio-slug" required
+                           placeholder="bar-pedro"
+                           pattern="[a-z0-9-]+"
+                           class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Dirección (opcional)</label>
+                    <input type="text" id="reg-negocio-direccion"
+                           class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">NIF (opcional)</label>
+                    <input type="text" id="reg-negocio-nif"
+                           class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                </div>
+                
+                <h3 class="font-semibold text-gray-700 pt-4">Tus Datos (Admin)</h3>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Tu nombre</label>
+                    <input type="text" id="reg-admin-nombre" required
+                           class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Email</label>
+                    <input type="email" id="reg-admin-email" required
+                           class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Contraseña</label>
+                    <input type="password" id="reg-admin-password" required minlength="6"
+                           class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                </div>
+                
+                <button type="submit" 
+                        class="w-full bg-primary text-white p-4 rounded-xl font-semibold hover:bg-secondary transition-colors">
+                    Registrar
+                </button>
+            </form>
+            
+            <button id="btn-back-login" class="w-full mt-4 text-gray-500 underline text-sm">
+                Volver al login
+            </button>
+        </div>
+    </div>
+    
+    <!-- Dashboard (after login) -->
+    <div id="dashboard-screen" class="hidden">
+        
+        <!-- Header -->
+        <header class="bg-primary text-white p-4 shadow-lg sticky top-0 z-10">
+            <div class="container mx-auto max-w-4xl flex items-center justify-between">
+                <div>
+                    <h1 class="text-xl font-bold" id="dashboard-negocio-nombre">FichaFácil</h1>
+                    <p class="text-blue-100 text-sm" id="dashboard-user-nombre"></p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <a href="/index.html" class="text-white hover:text-blue-200" title="Volver al inicio">
+                        ← Volver al inicio
+                    </a>
+                    <button id="btn-logout" class="text-white hover:text-blue-200">
+                        🚪 Salir
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Tabs -->
+        <div class="bg-white border-b sticky top-16 z-10">
+            <div class="container mx-auto max-w-4xl flex">
+                <button class="tab-btn flex-1 py-3 text-center font-medium tab-active" data-tab="hoy">
+                    📊 Hoy
+                </button>
+                <button class="tab-btn flex-1 py-3 text-center font-medium text-gray-500" data-tab="empleados">
+                    👤 Empleados
+                </button>
+                <button class="tab-btn flex-1 py-3 text-center font-medium text-gray-500" data-tab="correcciones">
+                    ✏️ Correcciones
+                </button>
+                <button class="tab-btn flex-1 py-3 text-center font-medium text-gray-500" data-tab="pdf">
+                    📄 PDF
+                </button>
+            </div>
+        </div>
+        
+        <!-- Tab: Hoy (Today) -->
+        <div id="tab-hoy" class="container mx-auto max-w-4xl p-4">
+            
+            <!-- Alerts -->
+            <div id="alerts-container" class="mb-4 space-y-2"></div>
+            
+            <!-- Week Hours Badge -->
+            <div id="week-hours-container" class="mb-4 flex justify-end hidden">
+                <span id="week-hours-badge" class="badge-status badge-week">📊 Total semana: --</span>
+            </div>
+            
+            <!-- Today's Table -->
+            <div class="bg-white rounded-xl shadow overflow-hidden">
+                <div class="bg-gray-50 px-4 py-3 border-b flex justify-between items-center">
+                    <h2 class="font-semibold text-gray-800">Fichajes de Hoy</h2>
+                    <button id="btn-refresh" class="text-primary text-sm">🔄 Actualizar</button>
+                </div>
+                
+                <div class="table-responsive">
+                    <div id="fichajes-table" class="divide-y" style="min-width: 320px;">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+                
+                <div id="no-fichajes" class="hidden p-8 text-center text-gray-500">
+                    No hay fichajes hoy
+                </div>
+            </div>
+            
+            <!-- Pending Corrections -->
+            <div id="correcciones-section" class="mt-4 hidden">
+                <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                    <h3 class="font-semibold text-yellow-800 mb-2">⚠️ Correcciones Pendientes</h3>
+                    <div id="admin-correcciones-list" class="space-y-2"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tab: Empleados -->
+        <div id="tab-empleados" class="hidden container mx-auto max-w-4xl p-4">
+            <div class="bg-white rounded-xl shadow overflow-hidden">
+                <div class="bg-gray-50 px-4 py-3 border-b flex justify-between items-center">
+                    <h2 class="font-semibold text-gray-800">Empleados</h2>
+                    <button id="btn-add-empleado" class="bg-primary text-white px-3 py-1 rounded-lg text-sm">
+                        + Añadir
+                    </button>
+                </div>
+                
+                <div id="empleados-list" class="divide-y">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tab: Correcciones -->
+        <div id="tab-correcciones" class="hidden container mx-auto max-w-4xl p-4">
+            <div class="bg-white rounded-xl shadow overflow-hidden">
+                <div class="bg-gray-50 px-4 py-3 border-b">
+                    <h2 class="font-semibold text-gray-800">Historial de Correcciones</h2>
+                </div>
+                
+                <!-- Filter by Employee -->
+                <div class="p-4 border-b bg-gray-50">
+                    <div class="flex gap-2 items-center">
+                        <label class="text-sm text-gray-600">Filtrar por empleado:</label>
+                        <select id="correcciones-empleado-filter"
+                                class="flex-1 p-2 border border-gray-300 rounded-lg focus:border-primary focus:outline-none text-sm">
+                            <option value="">Todos los empleados</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Stats Summary -->
+                <div id="correcciones-stats" class="p-4 border-b bg-blue-50 text-sm">
+                    <div class="flex justify-around text-center">
+                        <div>
+                            <div class="font-bold text-yellow-600" id="stat-pendientes">0</div>
+                            <div class="text-gray-600">Pendientes</div>
+                        </div>
+                        <div>
+                            <div class="font-bold text-green-600" id="stat-aprobadas">0</div>
+                            <div class="text-gray-600">Aprobadas</div>
+                        </div>
+                        <div>
+                            <div class="font-bold text-red-600" id="stat-rechazadas">0</div>
+                            <div class="text-gray-600">Rechazadas</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Corrections List -->
+                <div id="correcciones-historial-list" class="divide-y">
+                    <!-- Populated by JS -->
+                </div>
+                
+                <div id="no-correcciones" class="hidden p-8 text-center text-gray-500">
+                    No hay correcciones registradas
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tab: PDF -->
+        <div id="tab-pdf" class="hidden container mx-auto max-w-4xl p-4">
+            <div class="bg-white rounded-xl shadow p-6">
+                <h2 class="font-semibold text-gray-800 mb-4">📄 Generar PDF Legal</h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-gray-600 mb-1">Desde</label>
+                        <input type="date" id="pdf-fecha-inicio"
+                               class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-600 mb-1">Hasta</label>
+                        <input type="date" id="pdf-fecha-fin"
+                               class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-600 mb-1">Empleado (opcional)</label>
+                        <select id="pdf-empleado"
+                                class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                            <option value="">Todos los empleados</option>
+                        </select>
+                    </div>
+                    
+                    <button id="btn-generate-pdf" 
+                            class="w-full bg-primary text-white p-4 rounded-xl font-semibold hover:bg-secondary transition-colors">
+                        Generar y Descargar PDF
+                    </button>
+                </div>
+                
+                <p class="mt-4 text-sm text-gray-500 text-center">
+                    ✓ Formato conforme a RD 318/2021
+                </p>
+            </div>
+        </div>
+        
+    </div>
+    
+    <!-- Modal: Add Employee -->
+    <div id="modal-empleado" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-md">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Añadir Empleado</h3>
+            
+            <form id="form-empleado" class="space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Nombre completo</label>
+                    <input type="text" id="emp-nombre" required
+                           class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">DNI (opcional)</label>
+                    <input type="text" id="emp-dni"
+                           class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">PIN (4 dígitos)</label>
+                    <input type="text" id="emp-pin" required
+                           pattern="[0-9]{4}" maxlength="4" inputmode="numeric"
+                           placeholder="1234"
+                           class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                </div>
+                
+                <div class="flex gap-2 pt-2">
+                    <button type="button" id="btn-cancel-empleado"
+                            class="flex-1 border border-gray-300 text-gray-700 p-3 rounded-xl">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                            class="flex-1 bg-primary text-white p-3 rounded-xl font-semibold">
+                        Guardar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal: Correction -->
+    <div id="modal-correccion" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-md">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Añadir Corrección</h3>
+            
+            <form id="form-correccion" class="space-y-4">
+                <input type="hidden" id="corr-fichaje-id">
+                <input type="hidden" id="corr-empleado-id-hidden">
+                
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Nueva hora</label>
+                    <input type="datetime-local" id="corr-timestamp" required
+                           class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Motivo</label>
+                    <select id="corr-motivo" required
+                            class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                        <option value="Olvido">Olvido</option>
+                        <option value="Error">Error</option>
+                        <option value="Acuerdo">Acuerdo</option>
+                        <option value="Otro">Otro</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Detalle (opcional)</label>
+                    <textarea id="corr-detalle" rows="2"
+                              class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none"></textarea>
+                </div>
+                
+                <div class="flex gap-2 pt-2">
+                    <button type="button" id="btn-cancel-correccion"
+                            class="flex-1 border border-gray-300 text-gray-700 p-3 rounded-xl">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                            class="flex-1 bg-primary text-white p-3 rounded-xl font-semibold">
+                        Proponer Corrección
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Onboarding Wizard Modal -->
+    <div id="onboarding-modal" class="onboarding-overlay hidden">
+        <div class="onboarding-card">
+            <!-- Progress dots -->
+            <div class="onboarding-progress">
+                <div class="onboarding-dot active" id="dot-1"></div>
+                <div class="onboarding-dot" id="dot-2"></div>
+                <div class="onboarding-dot" id="dot-3"></div>
+            </div>
+            
+            <!-- Step 1: Business Info -->
+            <div id="onboarding-step-1" class="space-y-4">
+                <div class="text-center mb-6">
+                    <div class="text-5xl mb-3">🏢</div>
+                    <h2 class="text-2xl font-bold text-gray-800">Tu Negocio</h2>
+                    <p class="text-gray-600">Primero, cuéntanos sobre tu empresa</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del negocio *</label>
+                    <input type="text" id="ob-negocio-nombre" required
+                           placeholder="Bar El Sol"
+                           class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Identificador (URL) *</label>
+                    <input type="text" id="ob-negocio-slug" required
+                           placeholder="bar-el-sol" pattern="[a-z0-9-]+"
+                           class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                    <p class="text-xs text-gray-500 mt-1">Solo letras minúsculas, números y guiones</p>
+                </div>
+                <button id="ob-next-1" type="button"
+                        class="w-full bg-primary text-white p-4 rounded-xl font-semibold mt-4 hover:bg-secondary transition-colors">
+                    Siguiente →
+                </button>
+            </div>
+            
+            <!-- Step 2: Admin Account -->
+            <div id="onboarding-step-2" class="space-y-4 hidden">
+                <div class="text-center mb-6">
+                    <div class="text-5xl mb-3">👤</div>
+                    <h2 class="text-2xl font-bold text-gray-800">Tu Cuenta Admin</h2>
+                    <p class="text-gray-600">Crea tu acceso de administrador</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tu nombre *</label>
+                    <input type="text" id="ob-admin-nombre" required
+                           placeholder="Juan Pérez"
+                           class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                    <input type="email" id="ob-admin-email" required
+                           placeholder="juan@ejemplo.com"
+                           class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Contraseña *</label>
+                    <input type="password" id="ob-admin-password" required minlength="6"
+                           placeholder="Mínimo 6 caracteres"
+                           class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button id="ob-back-2" type="button"
+                            class="flex-1 border border-gray-300 text-gray-700 p-3 rounded-xl">
+                        ← Atrás
+                    </button>
+                    <button id="ob-next-2" type="button"
+                            class="flex-1 bg-primary text-white p-3 rounded-xl font-semibold">
+                        Siguiente →
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Step 3: First Employee -->
+            <div id="onboarding-step-3" class="space-y-4 hidden">
+                <div class="text-center mb-6">
+                    <div class="text-5xl mb-3">👥</div>
+                    <h2 class="text-2xl font-bold text-gray-800">Primer Empleado</h2>
+                    <p class="text-gray-600">Añade tu primer trabajador</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nombre completo *</label>
+                    <input type="text" id="ob-emp-nombre" required
+                           placeholder="María García"
+                           class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">PIN de fichaje (4 dígitos) *</label>
+                    <input type="text" id="ob-emp-pin" required
+                           pattern="[0-9]{4}" maxlength="4" inputmode="numeric"
+                           placeholder="1234"
+                           class="w-full p-3 border border-gray-300 rounded-xl focus:border-primary focus:outline-none text-center text-2xl tracking-widest">
+                    <p class="text-xs text-gray-500 mt-1">Este PIN lo usará el empleado para fichar</p>
+                </div>
+                <div id="ob-error" class="hidden bg-red-50 text-red-600 p-3 rounded-lg text-center text-sm"></div>
+                <div class="flex gap-2 pt-2">
+                    <button id="ob-back-3" type="button"
+                            class="flex-1 border border-gray-300 text-gray-700 p-3 rounded-xl">
+                        ← Atrás
+                    </button>
+                    <button id="ob-finish" type="button"
+                            class="flex-1 bg-green-600 text-white p-3 rounded-xl font-semibold hover:bg-green-700">
+                        ✓ Completar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="/js/utils.js" defer></script>
+    <script src="/js/api.js" defer></script>
+    <script defer>
+        // ============================================
+        // INICIALIZACIÓN - Espera a que scripts carguen
+        // ============================================
+        console.log('[DEBUG-1] Script inline iniciado');
+        
+        // Función que verifica si los scripts están listos
+        function initializeDashboard() {
+            console.log('[INIT] Verificando scripts...');
+            console.log('[INIT] FichaFacilAPI:', typeof window.FichaFacilAPI);
+            console.log('[INIT] FichaFacilUtils:', typeof window.FichaFacilUtils);
+            
+            if (typeof window.FichaFacilAPI === 'undefined' || typeof window.FichaFacilUtils === 'undefined') {
+                console.warn('[INIT] Scripts no listos aún, esperando 100ms...');
+                setTimeout(initializeDashboard, 100);
+                return;
+            }
+            
+            console.log('[INIT] ✅ Scripts listos! Inicializando...');
+            startApp();
+        }
+        
+        function startApp() {
+        
+        // Shortcuts - with fallbacks
+        const auth = window.FichaFacilAPI?.auth || {};
+        const negocios = window.FichaFacilAPI?.negocios || {};
+        const fichajes = window.FichaFacilAPI?.fichajes || {};
+        const correcciones = window.FichaFacilAPI?.correcciones || {};
+        const pdf = window.FichaFacilAPI?.pdf || {};
+        
+        const showToast = window.FichaFacilUtils?.showToast || ((m) => alert(m));
+        const formatTime = window.FichaFacilUtils?.formatTime || ((t) => t);
+        const formatDate = window.FichaFacilUtils?.formatDate || ((d) => d);
+        const formatDistance = window.FichaFacilUtils?.formatDistance || ((d) => d);
+        const getTodayISO = window.FichaFacilUtils?.getTodayISO || (() => new Date().toISOString().split('T')[0]);
+        const getDateDaysAgo = window.FichaFacilUtils?.getDateDaysAgo || ((d) => new Date().toISOString().split('T')[0]);
+        
+        // State
+        let currentUser = null;
+        let currentNegocio = null;
+        let sseConnection = null;
+        
+        // DOM Elements
+        const loginScreen = document.getElementById('login-screen');
+        const registerScreen = document.getElementById('register-screen');
+        const dashboardScreen = document.getElementById('dashboard-screen');
+        
+        // DEBUG: Log 2 - Buscar botón (MULTIPLE WAYS)
+        console.log('[DEBUG-2a] DOM lista en:', new Date().toISOString());
+        console.log('[DEBUG-2b] document.body existe:', !!document.body);
+        console.log('[DEBUG-2c] login-screen div exists:', !!document.getElementById('login-screen'));
+        
+        let btnRegister = document.getElementById('btn-register');
+        console.log('[DEBUG-2d] Botón encontrado (getElementById):', !!btnRegister, btnRegister?.outerHTML?.substring(0, 50));
+        
+        // Alternativa si falla
+        if (!btnRegister) {
+            const allButtons = document.querySelectorAll('button');
+            console.log('[DEBUG-2e] Total botones en página:', allButtons.length);
+            for (let i = 0; i < allButtons.length; i++) {
+                if (allButtons[i].textContent.includes('Registrar')) {
+                    console.log('[DEBUG-2f] ¡Botón Registrar encontrado por texto!', allButtons[i]);
+                    btnRegister = allButtons[i];
+                    break;
+                }
+            }
+        }
+        
+        // === Login ===
+        
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            
+            try {
+                await auth.loginAdmin(email, password);
+                await loadDashboard();
+            } catch (error) {
+                document.getElementById('login-error').textContent = error.message;
+                document.getElementById('login-error').classList.remove('hidden');
+            }
+        });
+        
+        // DEBUG: Log 3 - Registrar listener (MÚLTIPLES MÉTODOS)
+        function registerButtonListener() {
+            if (!btnRegister) {
+                console.error('[DEBUG-3] ERROR: btnRegister es null/undefined');
+                return false;
+            }
+            
+            try {
+                // Método 1: addEventListener - Abre Onboarding Wizard
+                btnRegister.addEventListener('click', function handleButtonClick(e) {
+                    console.log('[DEBUG-4] ✅ CLICK DETECTADO - Abriendo Onboarding Wizard');
+                    initOnboarding();
+                });
+                console.log('[DEBUG-3a] addEventListener registrado ✓');
+                
+                // Método 2: onclick como backup
+                btnRegister.onclick = function(e) {
+                    console.log('[DEBUG-4b] ✅ CLICK DETECTADO vía onclick');
+                    initOnboarding();
+                };
+                console.log('[DEBUG-3b] onclick registrado ✓');
+                
+                console.log('[DEBUG-3] ✅ Listener registrado en #btn-register');
+                return true;
+            } catch (error) {
+                console.error('[DEBUG-3] ❌ ERROR al registrar listener:', error);
+                return false;
+            }
+        }
+        
+        // Registrar ahora
+        registerButtonListener();
+        
+        // Registrar también después de 100ms como backup
+        setTimeout(() => {
+            console.log('[DEBUG-3-delayed] Intento de registro DELAYED...');
+            if (!btnRegister) {
+                btnRegister = document.getElementById('btn-register');
+                console.log('[DEBUG-3-delayed-b] Botón re-encontrado:', !!btnRegister);
+            }
+            registerButtonListener();
+        }, 100);
+        
+        document.getElementById('btn-back-login').addEventListener('click', () => {
+            registerScreen.classList.add('hidden');
+            loginScreen.classList.remove('hidden');
+        });
+        
+        // === Register ===
+        
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const data = {
+                negocio_nombre: document.getElementById('reg-negocio-nombre').value,
+                negocio_slug: document.getElementById('reg-negocio-slug').value,
+                negocio_direccion: document.getElementById('reg-negocio-direccion').value || null,
+                negocio_nif: document.getElementById('reg-negocio-nif').value || null,
+                admin_nombre: document.getElementById('reg-admin-nombre').value,
+                admin_email: document.getElementById('reg-admin-email').value,
+                admin_password: document.getElementById('reg-admin-password').value,
+            };
+            
+            try {
+                await auth.register(data);
+                showToast('¡Negocio registrado!', 'success');
+                await loadDashboard();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        });
+        
+        // Auto-generate slug
+        document.getElementById('reg-negocio-nombre').addEventListener('input', (e) => {
+            const slug = e.target.value
+                .toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-|-$/g, '');
+            document.getElementById('reg-negocio-slug').value = slug;
+        });
+        
+        // === Dashboard ===
+        
+        async function loadDashboard() {
+            try {
+                currentUser = await auth.me();
+                currentNegocio = await negocios.getMine();
+                
+                document.getElementById('dashboard-negocio-nombre').textContent = currentNegocio.nombre;
+                document.getElementById('dashboard-user-nombre').textContent = currentUser.nombre;
+                
+                loginScreen.classList.add('hidden');
+                registerScreen.classList.add('hidden');
+                dashboardScreen.classList.remove('hidden');
+                
+                // Load initial data
+                await loadTodayFichajes();
+                await loadEmpleados();
+                await loadCorrecciones();
+                
+                // Set PDF default dates
+                document.getElementById('pdf-fecha-inicio').value = getDateDaysAgo(7);
+                document.getElementById('pdf-fecha-fin').value = getTodayISO();
+                
+                // Connect SSE for realtime
+                if (sseConnection) sseConnection.close();
+                sseConnection = window.FichaFacilAPI?.connectSSE?.(currentNegocio.id, handleSSEEvent);
+                
+            } catch (error) {
+                showToast('Error cargando dashboard', 'error');
+                localStorage.removeItem('token');
+            }
+        }
+        
+        function handleSSEEvent(type, data) {
+            console.log('SSE Event:', type, data);
+            if (type === 'fichaje') {
+                loadTodayFichajes();
+                // Show notification if permission granted
+                if ('Notification' in window && Notification.permission === 'granted' && navigator.serviceWorker.controller) {
+                    const nombreEmpleado = data.empleado_nombre || 'Empleado';
+                    const tipoFichaje = data.tipo === 'ENTRADA' ? 'entrada' : 'salida';
+                    navigator.serviceWorker.controller.postMessage({
+                        type: 'SHOW_NOTIFICATION',
+                        title: `📢 ${nombreEmpleado} fichó ${tipoFichaje}`,
+                        body: `${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`,
+                        tag: 'fichaje-' + Date.now()
+                    });
+                }
+            } else if (type === 'correccion') {
+                loadCorrecciones();
+            }
+        }
+        
+        // === Tabs ===
+        
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Update tab styles
+                document.querySelectorAll('.tab-btn').forEach(b => {
+                    b.classList.remove('tab-active');
+                    b.classList.add('text-gray-500');
+                });
+                btn.classList.add('tab-active');
+                btn.classList.remove('text-gray-500');
+                
+                // Show/hide content
+                ['hoy', 'empleados', 'correcciones', 'pdf'].forEach(tab => {
+                    document.getElementById(`tab-${tab}`).classList.add('hidden');
+                });
+                document.getElementById(`tab-${btn.dataset.tab}`).classList.remove('hidden');
+                
+                // Load data for tab
+                if (btn.dataset.tab === 'correcciones') {
+                    loadCorreccionesHistorial();
+                }
+            });
+        });
+        
+        // === Today's Fichajes ===
+        
+        async function loadTodayFichajes() {
+            try {
+                const data = await fichajes.getHoy();
+                renderFichajes(data);
+            } catch (error) {
+                showToast('Error cargando fichajes', 'error');
+            }
+        }
+        
+        function renderFichajes(data) {
+            const container = document.getElementById('fichajes-table');
+            const noFichajes = document.getElementById('no-fichajes');
+            const alertsContainer = document.getElementById('alerts-container');
+            const weekContainer = document.getElementById('week-hours-container');
+            const weekBadge = document.getElementById('week-hours-badge');
+            
+            // Calculate weekly total hours
+            let totalWeekMinutes = 0;
+            data.forEach(f => {
+                if (f.horas_trabajadas && f.horas_trabajadas !== '-') {
+                    const match = f.horas_trabajadas.match(/(\d+)h\s*(\d+)?m?/);
+                    if (match) {
+                        totalWeekMinutes += parseInt(match[1] || 0) * 60 + parseInt(match[2] || 0);
+                    }
+                }
+            });
+            
+            // Show week badge
+            if (totalWeekMinutes > 0) {
+                const h = Math.floor(totalWeekMinutes / 60);
+                const m = totalWeekMinutes % 60;
+                weekBadge.textContent = `📊 Total semana: ${h}h ${m}m`;
+                weekContainer.classList.remove('hidden');
+            } else {
+                weekContainer.classList.add('hidden');
+            }
+            
+            // Collect alerts
+            const alerts = data.filter(f => f.alerta);
+            
+            if (alerts.length > 0) {
+                alertsContainer.innerHTML = alerts.map(a => `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center justify-between">
+                        <span class="text-red-800">
+                            <strong>${a.empleado_nombre}:</strong> ${a.alerta}
+                        </span>
+                        <button class="btn-corregir text-red-600 underline text-sm" data-empleado="${a.empleado_id}" data-fichaje="${a.ultimo_fichaje_id || ''}">
+                            🔧 Corregir
+                        </button>
+                    </div>
+                `).join('');
+                
+                // Add click handlers for correction buttons
+                alertsContainer.querySelectorAll('.btn-corregir').forEach(btn => {
+                    btn.addEventListener('click', () => openCorreccionModal(btn.dataset.fichaje, btn.dataset.empleado));
+                });
+            } else {
+                alertsContainer.innerHTML = '';
+            }
+            
+            if (data.length === 0) {
+                container.innerHTML = '';
+                noFichajes.classList.remove('hidden');
+                return;
+            }
+            
+            noFichajes.classList.add('hidden');
+            
+            container.innerHTML = data.map(f => {
+                const entrada = f.entrada ? formatTime(f.entrada) : '-';
+                const salida = f.salida ? formatTime(f.salida) : '-';
+                const horas = f.horas_trabajadas || '-';
+                const distancia = f.distancia_metros !== null ? formatDistance(f.distancia_metros) : '-';
+                const distanciaNum = f.distancia_metros || 0;
+                
+                // Determine badge styles based on status
+                let badgeClass = '';
+                let badgeText = '';
+                let rowClass = '';
+                
+                if (f.estado === 'completo') {
+                    if (distanciaNum > 500) {
+                        badgeClass = 'badge-yellow';
+                        badgeText = '🟡 >500m';
+                        rowClass = 'bg-yellow-50';
+                    } else {
+                        badgeClass = 'badge-green';
+                        badgeText = '🟢 OK';
+                        rowClass = '';
+                    }
+                } else if (f.estado === 'pendiente_salida') {
+                    badgeClass = 'badge-yellow';
+                    badgeText = '🟡 Sin salida';
+                    rowClass = 'bg-yellow-50';
+                } else {
+                    badgeClass = 'badge-red';
+                    badgeText = '❌ Pendiente';
+                    rowClass = 'bg-red-50';
+                }
+                
+                return `
+                    <div class="p-4 ${rowClass}">
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex-1 min-w-0">
+                                <div class="font-semibold text-gray-800 flex items-center gap-2 flex-wrap">
+                                    ${f.empleado_nombre}
+                                    <span class="badge-status ${badgeClass}">${badgeText}</span>
+                                </div>
+                                <div class="text-sm text-gray-600 mt-1">
+                                    ${entrada} → ${salida} | ${horas}
+                                </div>
+                                <div class="text-xs text-gray-500">${distancia}</div>
+                            </div>
+                            <button class="btn-corregir-row text-gray-400 hover:text-primary text-xl p-2" 
+                                    data-fichaje="${f.ultimo_fichaje_id || ''}" 
+                                    data-empleado="${f.empleado_id}"
+                                    title="Corregir">
+                                🔧
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Add click handlers for row correction buttons
+            container.querySelectorAll('.btn-corregir-row').forEach(btn => {
+                btn.addEventListener('click', () => openCorreccionModal(btn.dataset.fichaje, btn.dataset.empleado));
+            });
+        }
+        
+        // Open correction modal from dashboard
+        function openCorreccionModal(fichajeId, empleadoId) {
+            document.getElementById('corr-fichaje-id').value = fichajeId || '';
+            document.getElementById('corr-empleado-id-hidden').value = empleadoId || '';
+            document.getElementById('corr-timestamp').value = '';
+            document.getElementById('corr-motivo').value = 'Olvido';
+            document.getElementById('corr-detalle').value = '';
+            document.getElementById('modal-correccion').classList.remove('hidden');
+        }
+        
+        // Cancel correction modal
+        document.getElementById('btn-cancel-correccion').addEventListener('click', () => {
+            document.getElementById('modal-correccion').classList.add('hidden');
+        });
+        
+        // Submit correction form
+        document.getElementById('form-correccion').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const fichajeId = document.getElementById('corr-fichaje-id').value;
+            const empleadoId = document.getElementById('corr-empleado-id-hidden').value;
+            const timestamp = document.getElementById('corr-timestamp').value;
+            const motivo = document.getElementById('corr-motivo').value;
+            const detalle = document.getElementById('corr-detalle').value;
+            
+            if (!timestamp) {
+                showToast('Selecciona la nueva hora', 'warning');
+                return;
+            }
+            
+            const btn = e.target.querySelector('[type="submit"]');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Guardando...';
+            
+            try {
+                await correcciones.crear({
+                    fichaje_id: fichajeId ? parseInt(fichajeId) : null,
+                    empleado_id: empleadoId ? parseInt(empleadoId) : null,
+                    timestamp_corregido: new Date(timestamp).toISOString(),
+                    motivo: motivo,
+                    detalle: detalle || null
+                });
+                
+                showToast('Corrección creada y pendiente de aprobación', 'success');
+                document.getElementById('modal-correccion').classList.add('hidden');
+                await loadTodayFichajes();
+                await loadCorrecciones();
+            } catch (error) {
+                showToast(error.message || 'Error creando corrección', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Proponer Corrección';
+            }
+        });
+        
+        document.getElementById('btn-refresh').addEventListener('click', loadTodayFichajes);
+        
+        // === Empleados ===
+        
+        async function loadEmpleados() {
+            try {
+                const data = await negocios.listEmpleados();
+                renderEmpleados(data);
+                
+                // Also populate PDF dropdown
+                const select = document.getElementById('pdf-empleado');
+                select.innerHTML = '<option value="">Todos los empleados</option>' +
+                    data.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('');
+                
+                // Also populate Correcciones filter dropdown
+                const correccionesFilter = document.getElementById('correcciones-empleado-filter');
+                correccionesFilter.innerHTML = '<option value="">Todos los empleados</option>' +
+                    data.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('');
+                
+            } catch (error) {
+                showToast('Error cargando empleados', 'error');
+            }
+        }
+        
+        function renderEmpleados(data) {
+            const container = document.getElementById('empleados-list');
+            
+            if (data.length === 0) {
+                container.innerHTML = '<p class="p-4 text-center text-gray-500">No hay empleados</p>';
+                return;
+            }
+            
+            container.innerHTML = data.map(e => `
+                <div class="p-4 flex items-center justify-between">
+                    <div>
+                        <div class="font-semibold text-gray-800">${e.nombre}</div>
+                        ${e.dni ? `<div class="text-sm text-gray-600">DNI: ${e.dni}</div>` : ''}
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="${e.active ? 'text-green-600' : 'text-red-600'}">
+                            ${e.active ? '✓ Activo' : '✗ Inactivo'}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Add employee modal
+        document.getElementById('btn-add-empleado').addEventListener('click', () => {
+            document.getElementById('modal-empleado').classList.remove('hidden');
+        });
+        
+        document.getElementById('btn-cancel-empleado').addEventListener('click', () => {
+            document.getElementById('modal-empleado').classList.add('hidden');
+            document.getElementById('form-empleado').reset();
+        });
+        
+        document.getElementById('form-empleado').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const data = {
+                nombre: document.getElementById('emp-nombre').value,
+                dni: document.getElementById('emp-dni').value || null,
+                pin: document.getElementById('emp-pin').value,
+            };
+            
+            try {
+                await negocios.createEmpleado(data);
+                showToast('Empleado añadido', 'success');
+                document.getElementById('modal-empleado').classList.add('hidden');
+                document.getElementById('form-empleado').reset();
+                await loadEmpleados();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        });
+        
+        // === Correcciones ===
+        
+        async function loadCorrecciones() {
+            try {
+                const data = await correcciones.getPendientes();
+                const section = document.getElementById('correcciones-section');
+                const list = document.getElementById('admin-correcciones-list');
+                
+                if (data.length === 0) {
+                    section.classList.add('hidden');
+                    return;
+                }
+                
+                section.classList.remove('hidden');
+                list.innerHTML = data.map(c => `
+                    <div class="bg-white rounded p-3 flex items-center justify-between">
+                        <div>
+                            <div class="font-medium">${c.empleado_nombre}</div>
+                            <div class="text-sm text-gray-600">
+                                ${formatTime(c.timestamp_original)} → ${formatTime(c.timestamp_corregido)}
+                            </div>
+                            <div class="text-xs text-gray-500">Por: ${c.creador_nombre} | ${c.motivo}</div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="btn-aprobar bg-green-500 text-white px-3 py-1 rounded" data-id="${c.id}">
+                                ✓
+                            </button>
+                            <button class="btn-rechazar bg-red-500 text-white px-3 py-1 rounded" data-id="${c.id}">
+                                ✗
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+                
+                // Add event listeners
+                list.querySelectorAll('.btn-aprobar').forEach(btn => {
+                    btn.addEventListener('click', () => aprobarCorreccion(btn.dataset.id, true));
+                });
+                list.querySelectorAll('.btn-rechazar').forEach(btn => {
+                    btn.addEventListener('click', () => aprobarCorreccion(btn.dataset.id, false));
+                });
+                
+            } catch (error) {
+                console.error('Error loading corrections:', error);
+            }
+        }
+        
+        async function aprobarCorreccion(id, aprobar) {
+            // Admin doesn't need PIN for MVP simplicity
+            try {
+                await correcciones.aprobar(id, '0000', aprobar);
+                showToast(aprobar ? 'Corrección aprobada' : 'Corrección rechazada', 'success');
+                await loadCorrecciones();
+                await loadTodayFichajes();
+                // Also refresh historial if tab is open
+                if (!document.getElementById('tab-correcciones').classList.contains('hidden')) {
+                    await loadCorreccionesHistorial();
+                }
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+        
+        // === Correcciones Historial Tab ===
+        
+        async function loadCorreccionesHistorial() {
+            const list = document.getElementById('correcciones-historial-list');
+            const noCorrecciones = document.getElementById('no-correcciones');
+            const empleadoFilter = document.getElementById('correcciones-empleado-filter').value || null;
+            
+            try {
+                const data = await correcciones.getHistorial(empleadoFilter);
+                
+                // Update stats
+                const pendientes = data.filter(c => c.estado === 'pendiente').length;
+                const aprobadas = data.filter(c => c.estado === 'aprobado').length;
+                const rechazadas = data.filter(c => c.estado === 'rechazado').length;
+                
+                document.getElementById('stat-pendientes').textContent = pendientes;
+                document.getElementById('stat-aprobadas').textContent = aprobadas;
+                document.getElementById('stat-rechazadas').textContent = rechazadas;
+                
+                if (data.length === 0) {
+                    list.innerHTML = '';
+                    noCorrecciones.classList.remove('hidden');
+                    return;
+                }
+                
+                noCorrecciones.classList.add('hidden');
+                
+                list.innerHTML = data.map(c => {
+                    const fechaOriginal = formatTime(c.timestamp_original);
+                    const fechaCorregida = formatTime(c.timestamp_corregido);
+                    const createdAt = new Date(c.created_at).toLocaleDateString('es-ES');
+                    
+                    let estadoBadge = '';
+                    let estadoClass = '';
+                    if (c.estado === 'pendiente') {
+                        estadoBadge = '<span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">Pendiente</span>';
+                        estadoClass = 'bg-yellow-50';
+                    } else if (c.estado === 'aprobado') {
+                        estadoBadge = '<span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">Aprobado</span>';
+                        estadoClass = 'bg-green-50';
+                    } else {
+                        estadoBadge = '<span class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">Rechazado</span>';
+                        estadoClass = 'bg-red-50';
+                    }
+                    
+                    return `
+                        <div class="p-4 ${estadoClass}">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <div class="font-semibold text-gray-800">${c.empleado_nombre || 'Empleado'}</div>
+                                    <div class="text-sm text-gray-600">
+                                        <span class="line-through">${fechaOriginal}</span>
+                                        → <span class="font-medium">${fechaCorregida}</span>
+                                    </div>
+                                    <div class="text-xs text-gray-500 mt-1">
+                                        <span class="font-medium">Motivo:</span> ${c.motivo}
+                                        ${c.detalle ? ` - "${c.detalle}"` : ''}
+                                    </div>
+                                    <div class="text-xs text-gray-400 mt-1">
+                                        Creada: ${createdAt} por ${c.creador_nombre}
+                                        ${c.aprobador_nombre ? ` | Resuelta por ${c.aprobador_nombre}` : ''}
+                                    </div>
+                                </div>
+                                <div>${estadoBadge}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+            } catch (error) {
+                console.error('Error loading corrections history:', error);
+                showToast('Error cargando historial', 'error');
+            }
+        }
+        
+        // Filter listener for correcciones historial
+        document.getElementById('correcciones-empleado-filter').addEventListener('change', loadCorreccionesHistorial);
+        
+        // === PDF ===
+        
+        document.getElementById('btn-generate-pdf').addEventListener('click', async () => {
+            const fechaInicio = document.getElementById('pdf-fecha-inicio').value;
+            const fechaFin = document.getElementById('pdf-fecha-fin').value;
+            const empleadoId = document.getElementById('pdf-empleado').value || null;
+            
+            if (!fechaInicio || !fechaFin) {
+                showToast('Selecciona fechas', 'warning');
+                return;
+            }
+            
+            const btn = document.getElementById('btn-generate-pdf');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Generando...';
+            
+            try {
+                await pdf.download(fechaInicio, fechaFin, empleadoId);
+                showToast('PDF descargado', 'success');
+            } catch (error) {
+                showToast(error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Generar y Descargar PDF';
+            }
+        });
+        
+        // === Logout ===
+        
+        document.getElementById('btn-logout').addEventListener('click', async () => {
+            await auth.logout();
+            localStorage.clear();  // Clean all locals storage
+            if (sseConnection) sseConnection.close();
+            dashboardScreen.classList.add('hidden');
+            loginScreen.classList.remove('hidden');
+        });
+        
+        // === Init ===
+        
+        // Check if already logged in
+        if (auth.isLoggedIn()) {
+            loadDashboard();
+        }
+        // Otherwise, login screen is already visible by default
+        
+        console.log('[DEBUG-FINAL] ✅ Dashboard script fully loaded without errors');
+        
+        // Register Service Worker and request notification permissions
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then((registration) => {
+                    console.log('✅ SW registered');
+                    
+                    // Request notification permission
+                    if ('Notification' in window && Notification.permission === 'default') {
+                        setTimeout(() => {
+                            Notification.requestPermission().then(permission => {
+                                console.log('🔔 Notification permission:', permission);
+                                if (permission === 'granted') {
+                                    // Schedule daily reminder
+                                    registration.active?.postMessage({ type: 'SCHEDULE_REMINDER' });
+                                }
+                            });
+                        }, 2000); // Wait 2 seconds before asking
+                    }
+                })
+                .catch((err) => console.log('❌ SW failed:', err));
+        }
+        
+        // === Onboarding Wizard Logic ===
+        
+        function initOnboarding() {
+            const modal = document.getElementById('onboarding-modal');
+            const step1 = document.getElementById('onboarding-step-1');
+            const step2 = document.getElementById('onboarding-step-2');
+            const step3 = document.getElementById('onboarding-step-3');
+            const dot1 = document.getElementById('dot-1');
+            const dot2 = document.getElementById('dot-2');
+            const dot3 = document.getElementById('dot-3');
+            const errorDiv = document.getElementById('ob-error');
+            
+            // Show onboarding
+            loginScreen.classList.add('hidden');
+            modal.classList.remove('hidden');
+            
+            // Auto-generate slug
+            document.getElementById('ob-negocio-nombre').addEventListener('input', (e) => {
+                const slug = e.target.value
+                    .toLowerCase()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                    .replace(/[^a-z0-9]+/g, '-')
+                    .replace(/^-|-$/g, '');
+                document.getElementById('ob-negocio-slug').value = slug;
+            });
+            
+            // Only numbers in PIN (4 digits)
+            document.getElementById('ob-emp-pin').addEventListener('input', (e) => {
+                e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
+            });
+            
+            // Step 1 -> Step 2
+            document.getElementById('ob-next-1').addEventListener('click', () => {
+                const nombre = document.getElementById('ob-negocio-nombre').value.trim();
+                const slug = document.getElementById('ob-negocio-slug').value.trim();
+                if (!nombre || !slug) {
+                    showToast('Completa todos los campos', 'warning');
+                    return;
+                }
+                step1.classList.add('hidden');
+                step2.classList.remove('hidden');
+                dot1.classList.remove('active');
+                dot1.classList.add('completed');
+                dot2.classList.add('active');
+            });
+            
+            // Step 2 -> Step 1 (back)
+            document.getElementById('ob-back-2').addEventListener('click', () => {
+                step2.classList.add('hidden');
+                step1.classList.remove('hidden');
+                dot2.classList.remove('active');
+                dot1.classList.remove('completed');
+                dot1.classList.add('active');
+            });
+            
+            // Step 2 -> Step 3
+            document.getElementById('ob-next-2').addEventListener('click', () => {
+                const nombre = document.getElementById('ob-admin-nombre').value.trim();
+                const email = document.getElementById('ob-admin-email').value.trim();
+                const password = document.getElementById('ob-admin-password').value;
+                if (!nombre || !email || !password || password.length < 6) {
+                    showToast('Completa todos los campos (contraseña mín. 6 caracteres)', 'warning');
+                    return;
+                }
+                step2.classList.add('hidden');
+                step3.classList.remove('hidden');
+                dot2.classList.remove('active');
+                dot2.classList.add('completed');
+                dot3.classList.add('active');
+            });
+            
+            // Step 3 -> Step 2 (back)
+            document.getElementById('ob-back-3').addEventListener('click', () => {
+                step3.classList.add('hidden');
+                step2.classList.remove('hidden');
+                dot3.classList.remove('active');
+                dot2.classList.remove('completed');
+                dot2.classList.add('active');
+            });
+            
+            // Finish onboarding
+            document.getElementById('ob-finish').addEventListener('click', async () => {
+                const empNombre = document.getElementById('ob-emp-nombre').value.trim();
+                const empPin = document.getElementById('ob-emp-pin').value.trim();
+                
+                if (!empNombre || !empPin || empPin.length !== 4) {
+                    showToast('Completa el nombre y PIN de 4 dígitos', 'warning');
+                    return;
+                }
+                
+                const finishBtn = document.getElementById('ob-finish');
+                finishBtn.disabled = true;
+                finishBtn.innerHTML = '<span class="spinner"></span>Creando...';
+                errorDiv.classList.add('hidden');
+                
+                try {
+                    // 1. Register business + admin
+                    const registerData = {
+                        negocio_nombre: document.getElementById('ob-negocio-nombre').value.trim(),
+                        negocio_slug: document.getElementById('ob-negocio-slug').value.trim(),
+                        admin_nombre: document.getElementById('ob-admin-nombre').value.trim(),
+                        admin_email: document.getElementById('ob-admin-email').value.trim(),
+                        admin_password: document.getElementById('ob-admin-password').value,
+                    };
+                    
+                    await auth.register(registerData);
+                    
+                    // 2. Create first employee
+                    await negocios.createEmpleado({
+                        nombre: empNombre,
+                        pin: empPin
+                    });
+                    
+                    // 3. Mark onboarding as done
+                    localStorage.setItem('onboarding_done', 'true');
+                    
+                    // 4. Hide modal and show dashboard
+                    modal.classList.add('hidden');
+                    showToast('¡Bienvenido a FichaFácil!', 'success');
+                    await loadDashboard();
+                    
+                } catch (error) {
+                    errorDiv.textContent = error.message || 'Error al registrar. Inténtalo de nuevo.';
+                    errorDiv.classList.remove('hidden');
+                } finally {
+                    finishBtn.disabled = false;
+                    finishBtn.innerHTML = '✓ Completar';
+                }
+            });
+        }
+        
+        } // Fin de startApp()
+        
+        // ============================================
+        // Inicializar cuando los scripts estén listos
+        // ============================================
+        initializeDashboard();
+    </script>
+</body>
+</html>

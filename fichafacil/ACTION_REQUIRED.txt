@@ -1,0 +1,48 @@
+====================================================================
+🔥 ACCIÓN REQUERIDA - REINICIA EL BACKEND CORRECTAMENTE
+====================================================================
+
+El test muestra que el backend está corriendo en localhost:8000 PERO
+NO está accesible desde la IP LAN (192.168.1.42:8000).
+
+PROBLEMA:
+---------
+Backend iniciado con:
+  ❌ uvicorn app.main:app
+  ❌ uvicorn app.main:app --host 127.0.0.1
+  
+Esto solo escucha en localhost, el iPhone NO puede conectarse.
+
+SOLUCIÓN:
+---------
+1. Ve a la terminal donde corre el backend
+2. Presiona CTRL+C para detenerlo
+3. Ejecuta:
+
+   cd backend
+   python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+                                    ^^^^^^^^^^^^^^
+                                    IMPORTANTE: 0.0.0.0 = todas las interfaces
+
+4. Deberías ver:
+   "INFO:     Uvicorn running on http://0.0.0.0:8000"
+   "🔌 CORS: Debug mode - Accepting any LAN IP on port 3000"
+
+5. Ejecuta de nuevo el test:
+   python test_network.py
+   
+   Ahora DEBERÍA ver:
+   ✅ 192.168.1.42:8000 ... REACHABLE
+   ✅ Origin: http://192.168.1.42:3000 ... CORS OK
+
+====================================================================
+DESPUÉS DE REINICIAR BACKEND:
+====================================================================
+
+Test en PC:
+  http://127.0.0.1:3000  → Debería funcionar
+
+Test en iPhone (mismo WiFi):
+  http://192.168.1.42:3000  → Ahora DEBERÍA funcionar y conectar al backend
+
+====================================================================

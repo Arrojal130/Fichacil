@@ -1,0 +1,23 @@
+# Render.com Blueprint
+# Deploy backend as web service with SQLite persistent disk
+
+services:
+  - type: web
+    name: fichafacil-api
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: https://fichafacil.netlify.app
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///./data/fichafacil.db
+    disk:
+      name: data
+      mountPath: /app/data
+      sizeGB: 1
+
+# Note: Free tier has 750 hours/month, spins down after 15 min inactivity
+# For production, upgrade to Starter ($7/month) for always-on

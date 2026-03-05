@@ -1,0 +1,212 @@
+# 🕐 FichaFácil MVP
+
+Sistema de control horario para PYMES españolas, conforme al RD 318/2021.
+
+## 🎯 Características
+
+- ✅ **Fichaje rápido** - PIN + Geolocalización en <3 segundos
+- ✅ **PWA instalable** - Funciona como app nativa en móvil
+- ✅ **Dashboard realtime** - Actualización en tiempo real vía SSE
+- ✅ **Correcciones con aprobación mutua** - Auditoría completa
+- ✅ **PDF legal** - Exportación conforme a RD 318/2021
+- ✅ **Multi-tenant** - Múltiples negocios independientes
+- ✅ **Infraestructura $0** - Render.com + Netlify free tier
+
+## 🏗️ Arquitectura
+
+```
+┌──────────────────┐     ┌──────────────────┐
+│   Frontend PWA   │────▶│   Backend API    │
+│    (Netlify)     │     │   (Render.com)   │
+│                  │     │                  │
+│  - index.html    │     │  - FastAPI       │
+│  - empleado.html │     │  - SQLAlchemy    │
+│  - dashboard.html│     │  - SQLite (WAL)  │
+│  - Service Worker│     │  - ReportLab PDF │
+└──────────────────┘     └──────────────────┘
+```
+
+## 🚀 Quick Start (Local)
+
+### Backend
+
+```bash
+cd backend
+
+# Crear entorno virtual
+python -m venv venv
+venv\Scripts\activate  # Windows
+# source venv/bin/activate  # Linux/Mac
+
+# Instalar dependencias
+pip install -r requirements.txt
+
+# Configurar variables de entorno
+copy .env.example .env
+# Editar .env con tu SECRET_KEY
+
+# Ejecutar
+uvicorn app.main:app --reload --port 8000
+```
+
+API disponible en: http://localhost:8000
+
+### Frontend
+
+```bash
+cd frontend
+
+# Servir archivos estáticos (cualquier servidor HTTP)
+python -m http.server 3000
+# O usar Live Server en VS Code
+```
+
+Frontend disponible en: http://localhost:3000
+
+## 📱 Uso
+
+### 1. Registrar negocio
+
+1. Ir a `http://localhost:3000`
+2. Click "Administrador"
+3. Click "Registrar nuevo negocio"
+4. Completar datos del negocio y admin
+
+### 2. Añadir empleados
+
+1. Login como admin en Dashboard
+2. Tab "Empleados" → "Añadir"
+3. Introducir nombre y PIN de 4 dígitos
+
+### 3. Fichar (empleado)
+
+1. Ir a `http://localhost:3000`
+2. Click "Soy Empleado"
+3. Buscar el negocio
+4. Introducir PIN
+5. Pulsar "ENTRADA" o "SALIDA"
+
+## 🌐 Deploy (Producción)
+
+### Backend → Render.com
+
+1. Crear cuenta en [render.com](https://render.com)
+2. Conectar repositorio GitHub
+3. Crear nuevo "Web Service"
+4. Seleccionar `backend/` como root
+5. Build command: `pip install -r requirements.txt`
+6. Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+7. Añadir environment variables:
+   - `SECRET_KEY`: (generar con `openssl rand -hex 32`)
+   - `CORS_ORIGINS`: `https://tu-app.netlify.app`
+
+### Frontend → Netlify
+
+1. Crear cuenta en [netlify.com](https://netlify.com)
+2. Drag & drop carpeta `frontend/`
+3. O conectar repositorio y especificar `frontend/` como base
+
+### Actualizar URLs
+
+1. En `frontend/js/api.js`, cambiar `API_BASE` a tu URL de Render
+2. En backend `.env`, actualizar `CORS_ORIGINS` con URL de Netlify
+
+## 📋 API Endpoints
+
+### Auth
+- `POST /api/auth/register` - Registrar negocio + admin
+- `POST /api/auth/login` - Login admin
+- `POST /api/auth/pin` - Login empleado con PIN
+- `GET /api/auth/me` - Usuario actual
+
+### Fichajes
+- `POST /api/fichajes` - Registrar fichaje
+- `GET /api/fichajes/hoy` - Fichajes de hoy (dashboard)
+- `GET /api/fichajes` - Listar fichajes (con filtros)
+
+### Correcciones
+- `POST /api/correcciones` - Crear corrección
+- `GET /api/correcciones/pendientes` - Pendientes de aprobación
+- `POST /api/correcciones/{id}/aprobar` - Aprobar/rechazar
+
+### PDF
+- `GET /api/pdf/legal` - Descargar PDF con registro horario
+
+### SSE
+- `GET /sse/{negocio_id}` - Stream de eventos realtime
+
+## 🔒 Seguridad
+
+- Contraseñas hasheadas con bcrypt
+- PINes hasheados (nunca en texto plano)
+- JWT con expiración de 30 días
+- Timestamps SIEMPRE del servidor (nunca del cliente)
+- CORS configurado por dominio
+
+## 📄 Cumplimiento Legal (RD 318/2021)
+
+El sistema cumple con:
+
+1. **Registro diario** - Hora exacta de inicio y fin de jornada
+2. **Conservación 4 años** - Base de datos con backup
+3. **Accesibilidad a trabajadores** - App PWA accesible
+4. **Registro fiable** - Sin manipulación (servidor timestamps)
+5. **Transparencia** - PDF exportable para Inspección de Trabajo
+
+## 🛠️ Tecnologías
+
+- **Backend**: Python 3.11, FastAPI, SQLAlchemy 2.0, SQLite
+- **Frontend**: HTML5, Tailwind CSS, Vanilla JS
+- **PWA**: Service Worker, Web App Manifest
+- **Realtime**: Server-Sent Events (SSE)
+- **PDF**: ReportLab
+- **Auth**: JWT + bcrypt
+
+## 📁 Estructura
+
+```
+fichafacil/
+├── backend/
+│   ├── app/
+│   │   ├── models/        # SQLAlchemy models
+│   │   ├── schemas/       # Pydantic schemas
+│   │   ├── routers/       # API endpoints
+│   │   ├── utils/         # Security, geolocation
+│   │   ├── config.py      # Settings
+│   │   ├── database.py    # DB connection
+│   │   └── main.py        # FastAPI app
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   └── render.yaml
+└── frontend/
+    ├── js/
+    │   ├── api.js         # API client
+    │   └── utils.js       # Helpers
+    ├── index.html         # Landing
+    ├── empleado.html      # Clock-in page
+    ├── dashboard.html     # Admin panel
+    ├── manifest.json      # PWA manifest
+    ├── sw.js              # Service worker
+    └── netlify.toml       # Deploy config
+```
+
+## ✅ Testing Checklist
+
+- [ ] Registrar negocio
+- [ ] Login admin
+- [ ] Añadir empleado con PIN
+- [ ] Fichar entrada (empleado)
+- [ ] Ver fichaje en dashboard (realtime)
+- [ ] Fichar salida
+- [ ] Crear corrección
+- [ ] Aprobar/rechazar corrección
+- [ ] Generar PDF
+- [ ] Instalar PWA en móvil
+
+## 📞 Soporte
+
+Para el piloto con el bar real, contactar al desarrollador.
+
+---
+
+**FichaFácil** - Control horario simple, legal y gratis.

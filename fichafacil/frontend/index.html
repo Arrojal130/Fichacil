@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="description" content="FichaFácil - Registro horario legal para negocios">
+    
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%232563eb' width='100' height='100' rx='20'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white'>🕐</text></svg>">
+    
+    <title>FichaFácil</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2563eb',
+                        secondary: '#1e40af'
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        /* Custom styles */
+        .btn-giant {
+            min-height: 80px;
+            font-size: 1.5rem;
+        }
+        .touch-target {
+            min-height: 48px;
+            min-width: 48px;
+        }
+        /* Prevent pull-to-refresh on mobile */
+        body {
+            overscroll-behavior-y: contain;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Main Container -->
+    <div class="container mx-auto px-4 py-8 max-w-md">
+        
+        <!-- Logo -->
+        <div class="text-center mb-8">
+            <div class="text-6xl mb-4">🕐</div>
+            <h1 class="text-3xl font-bold text-primary">FichaFácil</h1>
+            <p class="text-gray-600 mt-2">Registro horario legal</p>
+        </div>
+        
+        <!-- Main Options -->
+        <div class="space-y-4">
+            
+            <!-- Employee Entry -->
+            <a href="/empleado.html" 
+               class="block bg-primary hover:bg-secondary text-white rounded-xl p-6 shadow-lg transition-all touch-target">
+                <div class="flex items-center">
+                    <div class="text-4xl mr-4">⏱️</div>
+                    <div>
+                        <div class="text-xl font-semibold">Fichar</div>
+                        <div class="text-blue-100">Registrar entrada / salida</div>
+                    </div>
+                </div>
+            </a>
+            
+            <!-- Admin Entry -->
+            <a href="/dashboard.html" 
+               class="block bg-white hover:bg-gray-50 border-2 border-primary text-primary rounded-xl p-6 shadow-lg transition-all touch-target">
+                <div class="flex items-center">
+                    <div class="text-4xl mr-4">�</div>
+                    <div>
+                        <div class="text-xl font-semibold">Gestionar</div>
+                        <div class="text-gray-600">Equipo, informes y ajustes</div>
+                    </div>
+                </div>
+            </a>
+            
+        </div>
+        
+        <!-- Legal Footer -->
+        <div class="mt-12 text-center text-sm text-gray-500">
+            <p>✓ Conforme RD 318/2021</p>
+            <p class="mt-1">Registro horario obligatorio 2026</p>
+        </div>
+        
+        <!-- Install PWA Banner (hidden by default) -->
+        <div id="install-banner" class="hidden fixed bottom-0 left-0 right-0 bg-primary text-white p-4 shadow-lg">
+            <div class="container mx-auto max-w-md flex items-center justify-between">
+                <span>📱 Instalar app en tu móvil</span>
+                <button id="install-btn" class="bg-white text-primary px-4 py-2 rounded-lg font-semibold">
+                    Instalar
+                </button>
+            </div>
+        </div>
+        
+    </div>
+    
+    <!-- Scripts -->
+    <script>
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then((reg) => console.log('✅ SW registered'))
+                .catch((err) => console.log('❌ SW failed:', err));
+        }
+        
+        // PWA Install Prompt
+        let deferredPrompt;
+        const installBanner = document.getElementById('install-banner');
+        const installBtn = document.getElementById('install-btn');
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installBanner.classList.remove('hidden');
+        });
+        
+        installBtn?.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log('Install outcome:', outcome);
+                deferredPrompt = null;
+                installBanner.classList.add('hidden');
+            }
+        });
+        
+        // Hide banner if already installed
+        window.addEventListener('appinstalled', () => {
+            installBanner.classList.add('hidden');
+            console.log('✅ PWA installed');
+        });
+    </script>
+</body>
+</html>

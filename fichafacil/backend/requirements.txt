@@ -1,0 +1,36 @@
+# FichaFacil MVP - Backend Dependencies
+# Python 3.11+
+
+# Web Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+
+# Database
+sqlalchemy==2.0.25
+aiosqlite==0.19.0  # Async SQLite support
+
+# Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1  # CRITICAL: bcrypt 4.1+ is incompatible with passlib 1.7.4
+python-multipart==0.0.6
+
+# Validation
+pydantic==2.5.3
+pydantic-settings==2.1.0
+email-validator==2.1.0
+
+# PDF Generation
+reportlab==4.0.9
+
+# Utilities
+python-dotenv==1.0.0
+
+# CORS
+# (included in FastAPI)
+
+# Date handling
+python-dateutil==2.8.2
+
+# SSE Realtime
+sse-starlette==1.8.2
