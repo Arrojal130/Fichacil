@@ -1,6 +1,6 @@
 """
 FichaFacil MVP - PDF Generation Router
-Legal-compliant PDF reports for labor inspection.
+PDF reports designed to help with labor inspection exports.
 """
 from datetime import datetime, date, timezone
 from io import BytesIO
@@ -21,6 +21,7 @@ from app.models.user import UserRole
 from app.models.correccion import Correccion, EstadoCorreccion
 from app.utils.security import get_current_admin
 from app.utils.formatting import format_hours
+from app.utils.corrections import get_effective_timestamp
 import uuid
 
 router = APIRouter(prefix="/pdf", tags=["PDF"])
@@ -37,7 +38,7 @@ async def generar_pdf(
     """
     Generate legal PDF report for time records.
     
-    LEGAL COMPLIANCE (RD 318/2021):
+    Export contents intended to support time-register review:
     - Company info (name, NIF, address)
     - Employee info (name, DNI)
     - Daily records: date, entry, exit, total hours
@@ -106,7 +107,11 @@ async def generar_pdf(
     )
     result = await db.execute(correcciones_query)
     correcciones_aprobadas = result.scalars().all()
-    fichajes_corregidos = {c.fichaje_id for c in correcciones_aprobadas}
+    correcciones_por_fichaje = {
+        c.fichaje_id: c.timestamp_corregido
+        for c in correcciones_aprobadas
+    }
+    fichajes_corregidos = set(correcciones_por_fichaje)
     
     # Track if any corrections exist for footer note
     hay_correcciones = len(fichajes_corregidos) > 0
@@ -158,7 +163,7 @@ async def generar_pdf(
     # Header
     elements.append(Paragraph("REGISTRO DE JORNADA LABORAL", styles['Title2']))
     elements.append(Paragraph(
-        f"Conforme a RD 318/2021 y normativa vigente 2026",
+        "Documento diseñado para ayudar al cumplimiento del registro horario",
         styles['Legal']
     ))
     elements.append(Spacer(1, 0.5*cm))
@@ -208,17 +213,20 @@ async def generar_pdf(
                 entrada_corregido = entrada and entrada.id in fichajes_corregidos
                 salida_corregido = salida and salida.id in fichajes_corregidos
                 
-                entrada_str = entrada.timestamp.strftime("%H:%M") if entrada else "-"
+                entrada_ts = get_effective_timestamp(entrada, correcciones_por_fichaje) if entrada else None
+                salida_ts = get_effective_timestamp(salida, correcciones_por_fichaje) if salida else None
+
+                entrada_str = entrada_ts.strftime("%H:%M") if entrada_ts else "-"
                 if entrada_corregido:
                     entrada_str += " *"
                     
-                salida_str = salida.timestamp.strftime("%H:%M") if salida else "-"
+                salida_str = salida_ts.strftime("%H:%M") if salida_ts else "-"
                 if salida_corregido:
                     salida_str += " *"
                 
                 minutes = 0
-                if entrada and salida:
-                    minutes = int((salida.timestamp - entrada.timestamp).total_seconds() / 60)
+                if entrada_ts and salida_ts:
+                    minutes = int((salida_ts - entrada_ts).total_seconds() / 60)
                     total_minutes += minutes
                 
                 horas_str = format_hours(minutes) if minutes else "-"
@@ -292,7 +300,7 @@ async def generar_pdf(
         elements.append(Spacer(1, 0.3*cm))
     
     elements.append(Paragraph(
-        f"✓ CUMPLE RD 318/2021 | Generado: {gen_time}",
+        f"Generado: {gen_time} | Pendiente de validación legal definitiva",
         styles['Legal']
     ))
     elements.append(Paragraph(

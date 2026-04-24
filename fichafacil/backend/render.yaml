@@ -5,7 +5,7 @@ services:
   - type: web
     name: fichafacil-api
     runtime: docker
-    plan: free
+    plan: starter
     healthCheckPath: /health
     envVars:
       - key: SECRET_KEY
@@ -19,5 +19,5 @@ services:
       mountPath: /app/data
       sizeGB: 1
 
-# Note: Free tier has 750 hours/month, spins down after 15 min inactivity
-# For production, upgrade to Starter ($7/month) for always-on
+# Starter plan avoids free-tier cold starts during demos and client pilots.
+# For production with real data, use managed PostgreSQL plus the backup/restore runbook.

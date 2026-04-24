@@ -13,6 +13,8 @@ from app.models.fichaje import TipoFichaje
 from app.models.user import UserRole
 from app.schemas.fichaje import (
     FichajeCreate,
+    EmpleadoPinRequest,
+    HistorialEmpleadoRequest,
     FichajeResponse,
     FichajeConfirmacion,
     DashboardFichaje
@@ -152,14 +154,15 @@ async def crear_fichaje(
     )
 
 
-@router.get("/ultimo", response_model=FichajeResponse | None)
+@router.post("/ultimo", response_model=FichajeResponse | None)
 async def get_ultimo_fichaje(
-    negocio_id: int,
-    pin: str,
+    data: EmpleadoPinRequest,
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     """Get the last clock record for an employee (for display). Rate limited."""
+    negocio_id = data.negocio_id
+    pin = data.pin
     client_ip = get_client_ip(request)
     
     # Check rate limit before processing
@@ -205,12 +208,10 @@ async def get_ultimo_fichaje(
     return FichajeResponse.model_validate(fichaje)
 
 
-@router.get("/historial-empleado", response_model=list[FichajeResponse])
+@router.post("/historial-empleado", response_model=list[FichajeResponse])
 async def get_historial_empleado(
-    negocio_id: int,
-    pin: str,
-    dias: int = 7,
-    request: Request = None,
+    data: HistorialEmpleadoRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -218,6 +219,9 @@ async def get_historial_empleado(
     Returns last N days of fichajes for the authenticated employee.
     Rate limited.
     """
+    negocio_id = data.negocio_id
+    pin = data.pin
+    dias = data.dias
     client_ip = get_client_ip(request)
     check_pin_rate_limit(negocio_id, client_ip)
     

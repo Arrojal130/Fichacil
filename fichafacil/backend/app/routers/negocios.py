@@ -2,6 +2,8 @@
 FichaFacil MVP - Negocios (Business) Router
 Business management and employee administration.
 """
+import re
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -21,10 +23,38 @@ from app.schemas.user import (
 from app.utils.security import (
     get_current_admin,
     get_current_user,
-    hash_pin
+    hash_pin,
+    verify_pin,
 )
 
 router = APIRouter(prefix="/negocios", tags=["Negocios"])
+
+
+def validate_employee_pin(pin: str) -> None:
+    """Validate employee PIN format before hashing or comparing it."""
+    if not re.fullmatch(r"\d{4}", pin):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El PIN debe tener exactamente 4 dígitos"
+        )
+
+
+def ensure_unique_employee_pin(
+    employees: list[User],
+    pin: str,
+    *,
+    exclude_user_id: int | None = None,
+) -> None:
+    """Reject duplicate employee PINs within the same business."""
+    for emp in employees:
+        if exclude_user_id is not None and emp.id == exclude_user_id:
+            continue
+
+        if emp.pin_hash and verify_pin(pin, emp.pin_hash):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Este PIN ya está en uso por otro empleado"
+            )
 
 
 @router.get("/search", response_model=list[NegocioListItem])
@@ -125,16 +155,9 @@ async def create_empleado(
         )
     )
     existing_employees = existing.scalars().all()
-    
-    # Verify PIN is unique
-    from app.utils.security import verify_pin
-    for emp in existing_employees:
-        if emp.pin_hash and verify_pin(data.pin, emp.pin_hash):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Este PIN ya está en uso por otro empleado"
-            )
-    
+    validate_employee_pin(data.pin)
+    ensure_unique_employee_pin(existing_employees, data.pin)
+
     empleado = User(
         nombre=data.nombre,
         dni=data.dni,
@@ -204,6 +227,20 @@ async def update_empleado(
     if dni is not None:
         empleado.dni = dni
     if pin is not None:
+        existing = await db.execute(
+            select(User).where(
+                User.negocio_id == current_user.negocio_id,
+                User.rol == UserRole.EMPLEADO,
+                User.active == True
+            )
+        )
+        existing_employees = existing.scalars().all()
+        validate_employee_pin(pin)
+        ensure_unique_employee_pin(
+            existing_employees,
+            pin,
+            exclude_user_id=empleado.id,
+        )
         empleado.pin_hash = hash_pin(pin)
     if active is not None:
         empleado.active = active

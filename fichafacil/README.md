@@ -1,6 +1,6 @@
 # 🕐 FichaFácil MVP
 
-Sistema de control horario para PYMES españolas, conforme al RD 318/2021.
+Sistema de control horario para PYMES españolas, diseñado para ayudar al cumplimiento del registro horario.
 
 ## 🎯 Características
 
@@ -8,7 +8,7 @@ Sistema de control horario para PYMES españolas, conforme al RD 318/2021.
 - ✅ **PWA instalable** - Funciona como app nativa en móvil
 - ✅ **Dashboard realtime** - Actualización en tiempo real vía SSE
 - ✅ **Correcciones con aprobación mutua** - Auditoría completa
-- ✅ **PDF legal** - Exportación conforme a RD 318/2021
+- ✅ **PDF de registro** - Exportación diseñada para revisión laboral
 - ✅ **Multi-tenant** - Múltiples negocios independientes
 - ✅ **Infraestructura $0** - Render.com + Netlify free tier
 
@@ -111,6 +111,12 @@ Frontend disponible en: http://localhost:3000
 1. En `frontend/js/api.js`, cambiar `API_BASE` a tu URL de Render
 2. En backend `.env`, actualizar `CORS_ORIGINS` con URL de Netlify
 
+## 🛡️ Operación, backups y retención
+
+Antes de usar FichaFácil con clientes reales, revisa y ejecuta el runbook de backup/restore: [`docs/ops/backup-restore.md`](docs/ops/backup-restore.md).
+
+La conservación de registros durante 4 años no debe depender solo del disco del servicio web: requiere backups externos, cifrados y restores probados periódicamente.
+
 ## 📋 API Endpoints
 
 ### Auth
@@ -143,9 +149,9 @@ Frontend disponible en: http://localhost:3000
 - Timestamps SIEMPRE del servidor (nunca del cliente)
 - CORS configurado por dominio
 
-## 📄 Cumplimiento Legal (RD 318/2021)
+## 📄 Cumplimiento y validación legal
 
-El sistema cumple con:
+El sistema está diseñado para ayudar con:
 
 1. **Registro diario** - Hora exacta de inicio y fin de jornada
 2. **Conservación 4 años** - Base de datos con backup

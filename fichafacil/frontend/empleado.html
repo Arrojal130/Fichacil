@@ -271,7 +271,7 @@
         const fichajesAPI = window.FichaFacilAPI.fichajes;
         const negociosAPI = window.FichaFacilAPI.negocios;
         const correccionesAPI = window.FichaFacilAPI.correcciones;
-        const { getGeolocation, showToast, formatTime, formatDistance, playSound, storeLastFichaje, debounce } = window.FichaFacilUtils;
+        const { getGeolocation, showToast, formatTime, formatDistance, playSound, storeLastFichaje, debounce, escapeHtml } = window.FichaFacilUtils;
         
         // State
         let selectedNegocio = null;
@@ -349,8 +349,8 @@
                         ${esFav ? '⭐' : '☆'}
                     </button>
                     <button class="negocio-item flex-1 bg-white border-2 ${esFav ? 'border-yellow-400' : 'border-gray-200'} hover:border-primary rounded-xl p-4 text-left transition-colors"
-                            data-id="${n.id}" data-nombre="${n.nombre}" data-slug="${n.slug}">
-                        <div class="font-semibold text-gray-800">${n.nombre}</div>
+                            data-id="${n.id}" data-nombre="${escapeHtml(n.nombre)}" data-slug="${escapeHtml(n.slug)}">
+                        <div class="font-semibold text-gray-800">${escapeHtml(n.nombre)}</div>
                     </button>
                 </div>
             `}).join('');
@@ -650,15 +650,15 @@
             return `
                 <div class="bg-white rounded-lg p-3 shadow-sm border border-yellow-100" data-correccion-id="${c.id}">
                     <div class="text-sm text-gray-600 mb-1">
-                        <span class="font-medium">${c.creador_nombre}</span> propone corregir:
+                        <span class="font-medium">${escapeHtml(c.creador_nombre)}</span> propone corregir:
                     </div>
                     <div class="text-sm mb-2">
                         <div class="line-through text-gray-400">${fechaOriginal}</div>
                         <div class="text-green-700 font-medium">→ ${fechaCorregida}</div>
                     </div>
                     <div class="text-sm text-gray-600 mb-2">
-                        <span class="font-medium">Motivo:</span> ${c.motivo}
-                        ${c.detalle ? `<br><span class="italic">"${c.detalle}"</span>` : ''}
+                        <span class="font-medium">Motivo:</span> ${escapeHtml(c.motivo)}
+                        ${c.detalle ? `<br><span class="italic">"${escapeHtml(c.detalle)}"</span>` : ''}
                     </div>
                     <div class="flex gap-2">
                         <button class="btn-aprobar flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-3 rounded-lg text-sm font-medium" 

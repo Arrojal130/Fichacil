@@ -14,6 +14,7 @@ from app.schemas.correccion import (
     CorreccionCreate,
     CorreccionApprove,
     CorreccionApproveEmpleado,
+    CorreccionesPendientesEmpleadoRequest,
     CorreccionResponse,
     CorreccionPendiente
 )
@@ -266,8 +267,8 @@ async def aprobar_correccion(
     
     if data.aprobar:
         correccion.estado = EstadoCorreccion.APROBADO
-        # Update fichaje timestamp
-        fichaje.timestamp = correccion.timestamp_corregido
+        # Keep the original fichaje immutable. Reports/read models must resolve
+        # Correccion.timestamp_corregido as the effective timestamp.
     else:
         correccion.estado = EstadoCorreccion.RECHAZADO
     
@@ -379,10 +380,9 @@ async def get_historial_correcciones(
 # ENDPOINTS PARA EMPLEADOS (autenticación por PIN)
 # ============================================
 
-@router.get("/pendientes-empleado", response_model=list[CorreccionPendiente])
+@router.post("/pendientes-empleado", response_model=list[CorreccionPendiente])
 async def get_correcciones_pendientes_empleado(
-    negocio_id: int,
-    pin: str,
+    data: CorreccionesPendientesEmpleadoRequest,
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
@@ -391,6 +391,8 @@ async def get_correcciones_pendientes_empleado(
     Returns corrections proposed by admin that need employee approval.
     Rate limited: 5 attempts per IP per hour.
     """
+    negocio_id = data.negocio_id
+    pin = data.pin
     client_ip = get_client_ip(request)
     check_pin_rate_limit(negocio_id, client_ip)
     
@@ -546,8 +548,8 @@ async def aprobar_correccion_empleado(
     
     if data.aprobar:
         correccion.estado = EstadoCorreccion.APROBADO
-        # Update fichaje timestamp
-        fichaje.timestamp = correccion.timestamp_corregido
+        # Keep the original fichaje immutable. Reports/read models must resolve
+        # Correccion.timestamp_corregido as the effective timestamp.
     else:
         correccion.estado = EstadoCorreccion.RECHAZADO
     

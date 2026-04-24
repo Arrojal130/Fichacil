@@ -3,7 +3,7 @@ FichaFacil MVP - User Schemas
 Validation and serialization for user entities.
 """
 from datetime import datetime
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from app.models.user import UserRole
 
 
@@ -45,9 +45,7 @@ class UserResponse(UserBase):
     negocio_id: int
     active: bool
     created_at: datetime
-    
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class EmpleadoResponse(BaseModel):
@@ -56,15 +54,11 @@ class EmpleadoResponse(BaseModel):
     nombre: str
     dni: str | None
     active: bool
-    
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class EmpleadoPublic(BaseModel):
     """Public employee info (no sensitive data)."""
     id: int
     nombre: str
-    
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

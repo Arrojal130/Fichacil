@@ -421,7 +421,7 @@
                 </div>
                 
                 <p class="mt-4 text-sm text-gray-500 text-center">
-                    ✓ Formato conforme a RD 318/2021
+                    ✓ Formato diseñado para revisión laboral
                 </p>
             </div>
         </div>
@@ -657,6 +657,7 @@
         const formatTime = window.FichaFacilUtils?.formatTime || ((t) => t);
         const formatDate = window.FichaFacilUtils?.formatDate || ((d) => d);
         const formatDistance = window.FichaFacilUtils?.formatDistance || ((d) => d);
+        const escapeHtml = window.FichaFacilUtils?.escapeHtml || ((value) => String(value ?? ''));
         const getTodayISO = window.FichaFacilUtils?.getTodayISO || (() => new Date().toISOString().split('T')[0]);
         const getDateDaysAgo = window.FichaFacilUtils?.getDateDaysAgo || ((d) => new Date().toISOString().split('T')[0]);
         
@@ -913,7 +914,7 @@
                 alertsContainer.innerHTML = alerts.map(a => `
                     <div class="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center justify-between">
                         <span class="text-red-800">
-                            <strong>${a.empleado_nombre}:</strong> ${a.alerta}
+                            <strong>${escapeHtml(a.empleado_nombre)}:</strong> ${escapeHtml(a.alerta)}
                         </span>
                         <button class="btn-corregir text-red-600 underline text-sm" data-empleado="${a.empleado_id}" data-fichaje="${a.ultimo_fichaje_id || ''}">
                             🔧 Corregir
@@ -974,7 +975,7 @@
                         <div class="flex items-center justify-between gap-2">
                             <div class="flex-1 min-w-0">
                                 <div class="font-semibold text-gray-800 flex items-center gap-2 flex-wrap">
-                                    ${f.empleado_nombre}
+                                    ${escapeHtml(f.empleado_nombre)}
                                     <span class="badge-status ${badgeClass}">${badgeText}</span>
                                 </div>
                                 <div class="text-sm text-gray-600 mt-1">
@@ -1066,12 +1067,12 @@
                 // Also populate PDF dropdown
                 const select = document.getElementById('pdf-empleado');
                 select.innerHTML = '<option value="">Todos los empleados</option>' +
-                    data.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('');
+                    data.map(e => `<option value="${e.id}">${escapeHtml(e.nombre)}</option>`).join('');
                 
                 // Also populate Correcciones filter dropdown
                 const correccionesFilter = document.getElementById('correcciones-empleado-filter');
                 correccionesFilter.innerHTML = '<option value="">Todos los empleados</option>' +
-                    data.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('');
+                    data.map(e => `<option value="${e.id}">${escapeHtml(e.nombre)}</option>`).join('');
                 
             } catch (error) {
                 showToast('Error cargando empleados', 'error');
@@ -1089,8 +1090,8 @@
             container.innerHTML = data.map(e => `
                 <div class="p-4 flex items-center justify-between">
                     <div>
-                        <div class="font-semibold text-gray-800">${e.nombre}</div>
-                        ${e.dni ? `<div class="text-sm text-gray-600">DNI: ${e.dni}</div>` : ''}
+                        <div class="font-semibold text-gray-800">${escapeHtml(e.nombre)}</div>
+                        ${e.dni ? `<div class="text-sm text-gray-600">DNI: ${escapeHtml(e.dni)}</div>` : ''}
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="${e.active ? 'text-green-600' : 'text-red-600'}">
@@ -1148,11 +1149,11 @@
                 list.innerHTML = data.map(c => `
                     <div class="bg-white rounded p-3 flex items-center justify-between">
                         <div>
-                            <div class="font-medium">${c.empleado_nombre}</div>
+                            <div class="font-medium">${escapeHtml(c.empleado_nombre)}</div>
                             <div class="text-sm text-gray-600">
                                 ${formatTime(c.timestamp_original)} → ${formatTime(c.timestamp_corregido)}
                             </div>
-                            <div class="text-xs text-gray-500">Por: ${c.creador_nombre} | ${c.motivo}</div>
+                            <div class="text-xs text-gray-500">Por: ${escapeHtml(c.creador_nombre)} | ${escapeHtml(c.motivo)}</div>
                         </div>
                         <div class="flex gap-2">
                             <button class="btn-aprobar bg-green-500 text-white px-3 py-1 rounded" data-id="${c.id}">
@@ -1243,18 +1244,18 @@
                         <div class="p-4 ${estadoClass}">
                             <div class="flex items-start justify-between">
                                 <div class="flex-1">
-                                    <div class="font-semibold text-gray-800">${c.empleado_nombre || 'Empleado'}</div>
+                                    <div class="font-semibold text-gray-800">${escapeHtml(c.empleado_nombre || 'Empleado')}</div>
                                     <div class="text-sm text-gray-600">
                                         <span class="line-through">${fechaOriginal}</span>
                                         → <span class="font-medium">${fechaCorregida}</span>
                                     </div>
                                     <div class="text-xs text-gray-500 mt-1">
-                                        <span class="font-medium">Motivo:</span> ${c.motivo}
-                                        ${c.detalle ? ` - "${c.detalle}"` : ''}
+                                        <span class="font-medium">Motivo:</span> ${escapeHtml(c.motivo)}
+                                        ${c.detalle ? ` - "${escapeHtml(c.detalle)}"` : ''}
                                     </div>
                                     <div class="text-xs text-gray-400 mt-1">
-                                        Creada: ${createdAt} por ${c.creador_nombre}
-                                        ${c.aprobador_nombre ? ` | Resuelta por ${c.aprobador_nombre}` : ''}
+                                        Creada: ${createdAt} por ${escapeHtml(c.creador_nombre)}
+                                        ${c.aprobador_nombre ? ` | Resuelta por ${escapeHtml(c.aprobador_nombre)}` : ''}
                                     </div>
                                 </div>
                                 <div>${estadoBadge}</div>

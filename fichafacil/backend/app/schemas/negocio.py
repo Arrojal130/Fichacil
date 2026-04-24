@@ -3,7 +3,7 @@ FichaFacil MVP - Negocio Schemas
 Validation and serialization for business entities.
 """
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class NegocioBase(BaseModel):
@@ -34,9 +34,7 @@ class NegocioResponse(NegocioBase):
     id: int
     slug: str
     created_at: datetime
-    
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class NegocioListItem(BaseModel):
@@ -44,6 +42,4 @@ class NegocioListItem(BaseModel):
     id: int
     nombre: str
     slug: str
-    
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

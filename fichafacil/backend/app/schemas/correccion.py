@@ -3,7 +3,7 @@ FichaFacil MVP - Correccion Schemas
 Validation and serialization for correction records.
 """
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from app.models.correccion import EstadoCorreccion, MotivoCorreccion
 
 
@@ -28,6 +28,12 @@ class CorreccionApproveEmpleado(BaseModel):
     aprobar: bool  # True = approve, False = reject
 
 
+class CorreccionesPendientesEmpleadoRequest(BaseModel):
+    """Schema for employee pending corrections lookup without leaking PIN in URLs."""
+    negocio_id: int
+    pin: str = Field(..., min_length=4, max_length=4, pattern=r"^\d{4}$")
+
+
 class CorreccionResponse(BaseModel):
     """Schema for correction response."""
     id: int
@@ -43,9 +49,7 @@ class CorreccionResponse(BaseModel):
     aprobador_nombre: str | None
     created_at: datetime
     resolved_at: datetime | None
-    
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CorreccionPendiente(BaseModel):

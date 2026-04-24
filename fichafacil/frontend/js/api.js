@@ -7,9 +7,13 @@
 (function() {
 'use strict';
 
-// API Base URL - Dynamic for LAN/iPhone support
-// Always use same hostname as frontend but port 8000 for backend
-const API_BASE = `http://${window.location.hostname}:8000`;
+// API Base URL - direct backend for local/LAN, proxy path in production
+const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1']);
+const PRIVATE_IP_REGEX = /^(?:10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[0-1])\.)/;
+const IS_LOCAL_OR_LAN_HOST = LOCAL_HOSTNAMES.has(window.location.hostname) || PRIVATE_IP_REGEX.test(window.location.hostname);
+const API_BASE = IS_LOCAL_OR_LAN_HOST
+    ? `${window.location.protocol}//${window.location.hostname}:8000`
+    : '/api';
 
 console.log('🔌 API Configuration:');
 console.log('   Frontend:', window.location.origin);
@@ -94,10 +98,11 @@ async function apiRequest(endpoint, options = {}) {
         });
         
         // Check if it's a network error (can't reach backend)
-        if (error.message.includes('fetch') || error.message.includes('NetworkError')) {
+        if (error.message.includes('fetch') || error.message.includes('NetworkError') || error instanceof TypeError) {
             console.error('🔴 Network Error: Cannot reach backend at', API_BASE);
             console.error('   - Check if backend is running: uvicorn app.main:app --host 0.0.0.0 --port 8000');
             console.error('   - Check if PC IP is correct:', window.location.hostname);
+            throw new Error('No se ha podido contactar con FichaFácil. El fichaje no se ha registrado todavía. Reintenta en unos segundos.');
         }
         
         throw error;
@@ -230,7 +235,10 @@ const fichajesAPI = {
     
     // Get last fichaje
     async getUltimo(negocioId, pin) {
-        return await apiRequest(`/fichajes/ultimo?negocio_id=${negocioId}&pin=${pin}`);
+        return await apiRequest('/fichajes/ultimo', {
+            method: 'POST',
+            body: JSON.stringify({ negocio_id: negocioId, pin: pin }),
+        });
     },
     
     // Get today's fichajes (admin)
@@ -247,7 +255,10 @@ const fichajesAPI = {
     
     // Get fichaje history for employee (PIN auth)
     async getHistorialEmpleado(negocioId, pin, dias = 7) {
-        return await apiRequest(`/fichajes/historial-empleado?negocio_id=${negocioId}&pin=${encodeURIComponent(pin)}&dias=${dias}`);
+        return await apiRequest('/fichajes/historial-empleado', {
+            method: 'POST',
+            body: JSON.stringify({ negocio_id: negocioId, pin: pin, dias: dias }),
+        });
     }
 };
 
@@ -289,7 +300,10 @@ const correccionesAPI = {
     
     // Get pending corrections for employee (PIN auth)
     async getPendientesEmpleado(negocioId, pin) {
-        return await apiRequest(`/correcciones/pendientes-empleado?negocio_id=${negocioId}&pin=${encodeURIComponent(pin)}`);
+        return await apiRequest('/correcciones/pendientes-empleado', {
+            method: 'POST',
+            body: JSON.stringify({ negocio_id: negocioId, pin: pin }),
+        });
     },
     
     // Approve/reject correction as employee (PIN auth)

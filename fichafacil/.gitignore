@@ -1,6 +1,24 @@
+# Python environments and caches
 backend/venv
+.venv/
 __pycache__/
 *.pyc
 *.pyo
+
+# Local secrets/configuration (never commit real env files)
 .env
+**/.env
+*.env.local
+
+# Runtime databases and SQLite sidecars
+backend/data/
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+*.sqlite-shm
+*.sqlite-wal
+
+# Editor files
 .vscode/
