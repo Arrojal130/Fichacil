@@ -16,14 +16,14 @@ from app.schemas.correccion import (
     CorreccionApproveEmpleado,
     CorreccionesPendientesEmpleadoRequest,
     CorreccionResponse,
-    CorreccionPendiente
+    CorreccionPendiente,
 )
 from app.utils.security import (
-    get_current_user, 
-    verify_pin,
-    check_pin_rate_limit,
-    record_pin_attempt,
-    get_client_ip
+    get_current_admin,
+    get_current_user,
+    get_optional_user,
+    resolve_employee_user,
+    verify_password,
 )
 
 router = APIRouter(prefix="/correcciones", tags=["Correcciones"])
@@ -202,7 +202,7 @@ async def aprobar_correccion(
     """
     Approve or reject a correction.
     
-    LEGAL: Requires PIN confirmation for the approval.
+    LEGAL: Requires real admin password re-authentication for the approval.
     Updates the fichaje timestamp if approved.
     """
     # Get correction
@@ -236,17 +236,13 @@ async def aprobar_correccion(
     )
     fichaje = fichaje_result.scalar_one()
     
-    # Verify PIN
-    if current_user.rol == UserRole.EMPLEADO:
-        if not verify_pin(data.pin, current_user.pin_hash):
+    # Verify re-authentication
+    if current_user.rol == UserRole.ADMIN:
+        if not current_user.password_hash or not verify_password(data.admin_password, current_user.password_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="PIN incorrecto"
+                detail="Contraseña de administrador incorrecta"
             )
-    else:
-        # Admin verifies with password? For simplicity, skip in MVP
-        # In production, could require re-authentication
-        pass
     
     # Check permission
     if current_user.rol == UserRole.ADMIN:
@@ -384,42 +380,18 @@ async def get_historial_correcciones(
 async def get_correcciones_pendientes_empleado(
     data: CorreccionesPendientesEmpleadoRequest,
     request: Request,
+    current_user: User | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Get pending corrections for an employee (authenticated by PIN).
+    Get pending corrections for an employee.
     Returns corrections proposed by admin that need employee approval.
-    Rate limited: 5 attempts per IP per hour.
+    Session-authenticated employees only.
     """
-    negocio_id = data.negocio_id
-    pin = data.pin
-    client_ip = get_client_ip(request)
-    check_pin_rate_limit(negocio_id, client_ip)
-    
-    # Find employee by PIN
-    result = await db.execute(
-        select(User).where(
-            User.negocio_id == negocio_id,
-            User.rol == UserRole.EMPLEADO,
-            User.active == True
-        )
+    empleado = await resolve_employee_user(
+        current_user=current_user,
+        negocio_id=data.negocio_id,
     )
-    employees = result.scalars().all()
-    
-    empleado = None
-    for emp in employees:
-        if emp.pin_hash and verify_pin(pin, emp.pin_hash):
-            empleado = emp
-            break
-    
-    if not empleado:
-        record_pin_attempt(negocio_id, client_ip, success=False)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="PIN incorrecto"
-        )
-    
-    record_pin_attempt(negocio_id, client_ip, success=True)
     
     # Get fichajes for this employee
     fichaje_result = await db.execute(
@@ -468,42 +440,19 @@ async def aprobar_correccion_empleado(
     correccion_id: int,
     data: CorreccionApproveEmpleado,
     request: Request,
+    current_user: User | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Employee approves/rejects a correction using PIN (no JWT required).
-    
-    LEGAL: Requires PIN confirmation for the approval.
+    Employee approves/rejects a correction.
+
+    Employees use their authenticated session; no PIN re-entry is required.
     Updates the fichaje timestamp if approved.
-    Rate limited: 5 attempts per IP per hour.
     """
-    client_ip = get_client_ip(request)
-    check_pin_rate_limit(data.negocio_id, client_ip)
-    
-    # Find employee by PIN
-    result = await db.execute(
-        select(User).where(
-            User.negocio_id == data.negocio_id,
-            User.rol == UserRole.EMPLEADO,
-            User.active == True
-        )
+    empleado = await resolve_employee_user(
+        current_user=current_user,
+        negocio_id=data.negocio_id,
     )
-    employees = result.scalars().all()
-    
-    empleado = None
-    for emp in employees:
-        if emp.pin_hash and verify_pin(data.pin, emp.pin_hash):
-            empleado = emp
-            break
-    
-    if not empleado:
-        record_pin_attempt(data.negocio_id, client_ip, success=False)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="PIN incorrecto"
-        )
-    
-    record_pin_attempt(data.negocio_id, client_ip, success=True)
     
     # Get correction
     result = await db.execute(

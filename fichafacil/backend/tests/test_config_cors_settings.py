@@ -28,9 +28,14 @@ class SettingsCorsTests(unittest.TestCase):
             sys.modules.pop(module_name, None)
 
     def test_debug_is_disabled_by_default_for_safer_deployments(self):
-        settings = Settings(secret_key="0123456789abcdef0123456789abcdef")
+        settings = Settings(secret_key="0123456789abcdef0123456789abcdef", _env_file=None)
 
         self.assertFalse(settings.debug)
+
+    def test_default_sqlite_database_lives_inside_backend_data_directory(self):
+        settings = Settings(secret_key="0123456789abcdef0123456789abcdef", _env_file=None)
+
+        self.assertEqual(settings.database_url, "sqlite+aiosqlite:///./data/fichafacil.db")
 
     def test_importing_main_does_not_emit_pydantic_class_based_config_warning(self):
         for module_name in ["app.main", "app.config"]:
@@ -98,15 +103,29 @@ class SettingsCorsTests(unittest.TestCase):
 
     def test_rejects_short_or_placeholder_secret_keys_in_production(self):
         with self.assertRaisesRegex(ValueError, "SECRET_KEY inseguro"):
-            Settings(secret_key="your-secret-key-change-in-production")
+            Settings(secret_key="your-secret-key-change-in-production", _env_file=None)
 
         with self.assertRaisesRegex(ValueError, "SECRET_KEY inseguro"):
-            Settings(secret_key="short-secret")
+            Settings(secret_key="short-secret", _env_file=None)
 
     def test_accepts_secure_secret_key_in_production(self):
         settings = Settings(secret_key="0123456789abcdef0123456789abcdef")
 
         self.assertEqual(settings.secret_key, "0123456789abcdef0123456789abcdef")
+
+    def test_trusted_proxy_ips_defaults_to_empty_for_safe_proxy_header_handling(self):
+        settings = Settings(secret_key="0123456789abcdef0123456789abcdef", _env_file=None)
+
+        self.assertEqual(settings.trusted_proxy_ips, "")
+
+    def test_trusted_proxy_ips_can_be_configured_from_environment(self):
+        settings = Settings(
+            secret_key="0123456789abcdef0123456789abcdef",
+            trusted_proxy_ips="10.0.0.0/24, 127.0.0.1",
+            _env_file=None,
+        )
+
+        self.assertEqual(settings.trusted_proxy_ips, "10.0.0.0/24, 127.0.0.1")
 
     def test_disables_debug_lan_regex_in_production_mode(self):
         settings = Settings(debug=False, secret_key="0123456789abcdef0123456789abcdef")
@@ -152,7 +171,7 @@ class SettingsCorsTests(unittest.TestCase):
         middleware = CORSMiddleware(
             app=lambda scope, receive, send: None,
             allow_origins=["https://app.example.com"],
-            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
             allow_headers=["Content-Type", "Authorization"],
             allow_credentials=True,
             allow_origin_regex=Settings.DEBUG_LAN_ORIGIN_REGEX,
@@ -182,7 +201,7 @@ class SettingsCorsTests(unittest.TestCase):
         middleware = CORSMiddleware(
             app=lambda scope, receive, send: None,
             allow_origins=settings.effective_allowed_origins,
-            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
             allow_headers=["Content-Type", "Authorization"],
             allow_credentials=True,
             allow_origin_regex=settings.cors_origin_regex,

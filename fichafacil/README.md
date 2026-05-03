@@ -41,7 +41,7 @@ venv\Scripts\activate  # Windows
 # Instalar dependencias
 pip install -r requirements.txt
 
-# Configurar variables de entorno
+# Configurar variables de entorno (solo local)
 copy .env.example .env
 # Editar .env con tu SECRET_KEY
 
@@ -92,13 +92,16 @@ Frontend disponible en: http://localhost:3000
 
 1. Crear cuenta en [render.com](https://render.com)
 2. Conectar repositorio GitHub
-3. Crear nuevo "Web Service"
+3. Crear nuevo "Web Service" para producción real o un entorno de demo/piloto
 4. Seleccionar `backend/` como root
 5. Build command: `pip install -r requirements.txt`
 6. Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 7. Añadir environment variables:
    - `SECRET_KEY`: (generar con `openssl rand -hex 32`)
    - `CORS_ORIGINS`: `https://tu-app.netlify.app`
+   - `DATABASE_URL`: usar PostgreSQL gestionado en producción real
+
+**Importante:** `backend/.env` y `backend/data/fichafacil.db` solo deben existir en desarrollo o demos locales. No forman parte del flujo normal de producción real.
 
 ### Frontend → Netlify
 

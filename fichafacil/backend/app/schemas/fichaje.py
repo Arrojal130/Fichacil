@@ -10,16 +10,15 @@ from app.models.fichaje import TipoFichaje
 class FichajeCreate(BaseModel):
     """Schema for creating a clock record (employee)."""
     negocio_id: int
-    pin: str = Field(..., min_length=4, max_length=4, pattern=r"^\d{4}$")
+    pin: str | None = Field(None, min_length=4, max_length=4, pattern=r"^\d{4}$")
     tipo: TipoFichaje
     lat: float | None = Field(None, ge=-90, le=90)
     lon: float | None = Field(None, ge=-180, le=180)
 
 
 class EmpleadoPinRequest(BaseModel):
-    """Schema for employee PIN-authenticated reads without leaking PIN in URLs."""
+    """Schema for employee session-authenticated reads."""
     negocio_id: int
-    pin: str = Field(..., min_length=4, max_length=4, pattern=r"^\d{4}$")
 
 
 class HistorialEmpleadoRequest(EmpleadoPinRequest):

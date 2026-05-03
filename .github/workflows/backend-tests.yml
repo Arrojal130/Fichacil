@@ -1,4 +1,4 @@
-name: Backend tests
+name: CI
 
 on:
   pull_request:
@@ -11,6 +11,11 @@ jobs:
     defaults:
       run:
         working-directory: fichafacil/backend
+    env:
+      SECRET_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      DEBUG: 'false'
+      DATABASE_URL: sqlite+aiosqlite:///./ci.db
+      CORS_ORIGINS: http://localhost:3000
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,12 +27,28 @@ jobs:
           cache: pip
           cache-dependency-path: fichafacil/backend/requirements.txt
 
-      - name: Install dependencies
+      - name: Install backend dependencies
         run: python -m pip install --upgrade pip && pip install -r requirements.txt
 
-      - name: Run unit tests
-        env:
-          SECRET_KEY: 0123456789abcdef0123456789abcdef
-          DEBUG: 'false'
-          DATABASE_URL: sqlite+aiosqlite:///./data/test-fichafacil.db
+      - name: Run backend tests
         run: python -m unittest discover -s tests -v
+
+  frontend-checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: fichafacil
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check frontend JavaScript syntax
+        run: |
+          node --check frontend/js/api.js
+          node --check frontend/js/utils.js
+          node --check frontend/sw.js

@@ -20,12 +20,10 @@ from app.schemas.fichaje import (
     DashboardFichaje
 )
 from app.utils.security import (
-    verify_pin, 
-    get_current_user, 
+    get_current_user,
     get_current_admin,
-    check_pin_rate_limit,
-    record_pin_attempt,
-    get_client_ip
+    get_optional_user,
+    resolve_employee_user,
 )
 from app.utils.geolocation import calculate_distance_to_business, check_distance_alert
 from app.utils.formatting import format_hours
@@ -37,6 +35,7 @@ router = APIRouter(prefix="/fichajes", tags=["Fichajes"])
 async def crear_fichaje(
     data: FichajeCreate,
     request: Request,
+    current_user: User | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -44,13 +43,8 @@ async def crear_fichaje(
     
     CRITICAL: Timestamp is ALWAYS server-side (never trust client).
     Geolocation is validated but does NOT block clock-in.
-    Rate limited: 5 attempts per IP per hour.
+    Session-only employee auth is enforced after login.
     """
-    client_ip = get_client_ip(request)
-    
-    # Check rate limit before processing
-    check_pin_rate_limit(data.negocio_id, client_ip)
-    
     # Validate business exists
     result = await db.execute(
         select(Negocio).where(Negocio.id == data.negocio_id)
@@ -62,33 +56,11 @@ async def crear_fichaje(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Negocio no encontrado"
         )
-    
-    # Find employee by PIN in this business
-    result = await db.execute(
-        select(User).where(
-            User.negocio_id == data.negocio_id,
-            User.rol == UserRole.EMPLEADO,
-            User.active == True
-        )
+
+    empleado = await resolve_employee_user(
+        current_user=current_user,
+        negocio_id=data.negocio_id,
     )
-    employees = result.scalars().all()
-    
-    empleado = None
-    for emp in employees:
-        if emp.pin_hash and verify_pin(data.pin, emp.pin_hash):
-            empleado = emp
-            break
-    
-    if not empleado:
-        # Record failed attempt
-        record_pin_attempt(data.negocio_id, client_ip, success=False)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="PIN incorrecto"
-        )
-    
-    # Success - clear rate limit
-    record_pin_attempt(data.negocio_id, client_ip, success=True)
     
     # Check if this clock type makes sense
     # Get last fichaje for this employee today
@@ -158,42 +130,15 @@ async def crear_fichaje(
 async def get_ultimo_fichaje(
     data: EmpleadoPinRequest,
     request: Request,
+    current_user: User | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get the last clock record for an employee (for display). Rate limited."""
-    negocio_id = data.negocio_id
-    pin = data.pin
-    client_ip = get_client_ip(request)
-    
-    # Check rate limit before processing
-    check_pin_rate_limit(negocio_id, client_ip)
-    
-    # Find employee by PIN
-    result = await db.execute(
-        select(User).where(
-            User.negocio_id == negocio_id,
-            User.rol == UserRole.EMPLEADO,
-            User.active == True
-        )
+    """Get the last clock record for an employee (for display)."""
+    empleado = await resolve_employee_user(
+        current_user=current_user,
+        negocio_id=data.negocio_id,
     )
-    employees = result.scalars().all()
-    
-    empleado = None
-    for emp in employees:
-        if emp.pin_hash and verify_pin(pin, emp.pin_hash):
-            empleado = emp
-            break
-    
-    if not empleado:
-        record_pin_attempt(negocio_id, client_ip, success=False)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="PIN incorrecto"
-        )
-    
-    # Success - clear rate limit
-    record_pin_attempt(negocio_id, client_ip, success=True)
-    
+
     # Get last fichaje
     result = await db.execute(
         select(Fichaje).where(
@@ -212,43 +157,18 @@ async def get_ultimo_fichaje(
 async def get_historial_empleado(
     data: HistorialEmpleadoRequest,
     request: Request,
+    current_user: User | None = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Get fichaje history for employee (PIN auth, no JWT).
+    Get fichaje history for employee.
     Returns last N days of fichajes for the authenticated employee.
-    Rate limited.
     """
-    negocio_id = data.negocio_id
-    pin = data.pin
-    dias = data.dias
-    client_ip = get_client_ip(request)
-    check_pin_rate_limit(negocio_id, client_ip)
-    
-    # Find employee by PIN
-    result = await db.execute(
-        select(User).where(
-            User.negocio_id == negocio_id,
-            User.rol == UserRole.EMPLEADO,
-            User.active == True
-        )
+    empleado = await resolve_employee_user(
+        current_user=current_user,
+        negocio_id=data.negocio_id,
     )
-    employees = result.scalars().all()
-    
-    empleado = None
-    for emp in employees:
-        if emp.pin_hash and verify_pin(pin, emp.pin_hash):
-            empleado = emp
-            break
-    
-    if not empleado:
-        record_pin_attempt(negocio_id, client_ip, success=False)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="PIN incorrecto"
-        )
-    
-    record_pin_attempt(negocio_id, client_ip, success=True)
+    dias = data.dias
     
     # Get fichajes for last N days
     from datetime import timedelta

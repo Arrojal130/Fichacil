@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
+from app.config import get_settings
 from app.models import Negocio, User
 from app.models.user import UserRole
 from app.schemas.auth import (
@@ -30,9 +31,23 @@ from app.utils.security import (
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
+def issue_auth_cookie(response: Response, token: str) -> None:
+    """Store the JWT in an HttpOnly cookie instead of browser localStorage."""
+    settings = get_settings()
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite="lax",
+        max_age=settings.access_token_expire_minutes * 60,
+    )
+
+
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
 async def register_business(
     data: AdminRegister,
+    response: Response,
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -89,6 +104,7 @@ async def register_business(
         rol=UserRole.ADMIN
     )
     
+    issue_auth_cookie(response, token)
     return Token(access_token=token)
 
 
@@ -125,15 +141,7 @@ async def login_admin(
         rol=user.rol
     )
     
-    # Set cookie for convenience
-    response.set_cookie(
-        key="access_token",
-        value=token,
-        httponly=True,
-        secure=True,  # HTTPS only
-        samesite="lax",
-        max_age=3600  # 1 hour
-    )
+    issue_auth_cookie(response, token)
     
     return Token(access_token=token)
 
@@ -177,14 +185,7 @@ async def login_empleado(
                 rol=emp.rol
             )
             
-            response.set_cookie(
-                key="access_token",
-                value=token,
-                httponly=True,
-                secure=True,
-                samesite="lax",
-                max_age=3600
-            )
+            issue_auth_cookie(response, token)
             
             return Token(access_token=token)
     

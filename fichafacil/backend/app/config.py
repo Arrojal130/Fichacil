@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     MIN_PRODUCTION_SECRET_KEY_LENGTH: ClassVar[int] = 32
 
     # Database
-    database_url: str = "sqlite+aiosqlite:///./fichafacil.db"
+    database_url: str = "sqlite+aiosqlite:///./data/fichafacil.db"
 
     # JWT
     secret_key: str | None = None
@@ -50,6 +50,12 @@ class Settings(BaseSettings):
 
     # Rate limiting
     rate_limit_per_minute: int = 10
+    trusted_proxy_ips: str = ""
+
+    @property
+    def cookie_secure(self) -> bool:
+        """Use Secure cookies in production, but allow local/LAN HTTP testing in debug mode."""
+        return not self.debug
 
     @model_validator(mode="after")
     def validate_secret_key_for_runtime(self) -> "Settings":

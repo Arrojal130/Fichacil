@@ -792,7 +792,7 @@
         
         // === Dashboard ===
         
-        async function loadDashboard() {
+        async function loadDashboard({ showError = true } = {}) {
             try {
                 currentUser = await auth.me();
                 currentNegocio = await negocios.getMine();
@@ -818,8 +818,11 @@
                 sseConnection = window.FichaFacilAPI?.connectSSE?.(currentNegocio.id, handleSSEEvent);
                 
             } catch (error) {
-                showToast('Error cargando dashboard', 'error');
-                localStorage.removeItem('token');
+                if (showError) {
+                    showToast('Error cargando dashboard', 'error');
+                }
+                dashboardScreen.classList.add('hidden');
+                loginScreen.classList.remove('hidden');
             }
         }
         
@@ -916,7 +919,7 @@
                         <span class="text-red-800">
                             <strong>${escapeHtml(a.empleado_nombre)}:</strong> ${escapeHtml(a.alerta)}
                         </span>
-                        <button class="btn-corregir text-red-600 underline text-sm" data-empleado="${a.empleado_id}" data-fichaje="${a.ultimo_fichaje_id || ''}">
+                        <button class="btn-corregir text-red-600 underline text-sm" data-empleado="${escapeHtml(a.empleado_id)}" data-fichaje="${escapeHtml(a.ultimo_fichaje_id || '')}">
                             🔧 Corregir
                         </button>
                     </div>
@@ -984,8 +987,8 @@
                                 <div class="text-xs text-gray-500">${distancia}</div>
                             </div>
                             <button class="btn-corregir-row text-gray-400 hover:text-primary text-xl p-2" 
-                                    data-fichaje="${f.ultimo_fichaje_id || ''}" 
-                                    data-empleado="${f.empleado_id}"
+                                    data-fichaje="${escapeHtml(f.ultimo_fichaje_id || '')}"
+                                    data-empleado="${escapeHtml(f.empleado_id)}"
                                     title="Corregir">
                                 🔧
                             </button>
@@ -1067,12 +1070,12 @@
                 // Also populate PDF dropdown
                 const select = document.getElementById('pdf-empleado');
                 select.innerHTML = '<option value="">Todos los empleados</option>' +
-                    data.map(e => `<option value="${e.id}">${escapeHtml(e.nombre)}</option>`).join('');
+                    data.map(e => `<option value="${escapeHtml(e.id)}">${escapeHtml(e.nombre)}</option>`).join('');
                 
                 // Also populate Correcciones filter dropdown
                 const correccionesFilter = document.getElementById('correcciones-empleado-filter');
                 correccionesFilter.innerHTML = '<option value="">Todos los empleados</option>' +
-                    data.map(e => `<option value="${e.id}">${escapeHtml(e.nombre)}</option>`).join('');
+                    data.map(e => `<option value="${escapeHtml(e.id)}">${escapeHtml(e.nombre)}</option>`).join('');
                 
             } catch (error) {
                 showToast('Error cargando empleados', 'error');
@@ -1156,10 +1159,10 @@
                             <div class="text-xs text-gray-500">Por: ${escapeHtml(c.creador_nombre)} | ${escapeHtml(c.motivo)}</div>
                         </div>
                         <div class="flex gap-2">
-                            <button class="btn-aprobar bg-green-500 text-white px-3 py-1 rounded" data-id="${c.id}">
+                            <button class="btn-aprobar bg-green-500 text-white px-3 py-1 rounded" data-id="${escapeHtml(c.id)}">
                                 ✓
                             </button>
-                            <button class="btn-rechazar bg-red-500 text-white px-3 py-1 rounded" data-id="${c.id}">
+                            <button class="btn-rechazar bg-red-500 text-white px-3 py-1 rounded" data-id="${escapeHtml(c.id)}">
                                 ✗
                             </button>
                         </div>
@@ -1180,9 +1183,14 @@
         }
         
         async function aprobarCorreccion(id, aprobar) {
-            // Admin doesn't need PIN for MVP simplicity
+            const actionText = aprobar ? 'aprobar' : 'rechazar';
+            const adminPassword = window.prompt(`Introduce tu contraseña de administrador para ${actionText} esta corrección:`);
+            if (adminPassword === null || !adminPassword.trim()) {
+                return;
+            }
+
             try {
-                await correcciones.aprobar(id, '0000', aprobar);
+                await correcciones.aprobar(id, adminPassword, aprobar);
                 showToast(aprobar ? 'Corrección aprobada' : 'Corrección rechazada', 'success');
                 await loadCorrecciones();
                 await loadTodayFichajes();
@@ -1312,10 +1320,8 @@
         
         // === Init ===
         
-        // Check if already logged in
-        if (auth.isLoggedIn()) {
-            loadDashboard();
-        }
+        // Probe existing HttpOnly cookie session without showing an error to anonymous users.
+        loadDashboard({ showError: false });
         // Otherwise, login screen is already visible by default
         
         console.log('[DEBUG-FINAL] ✅ Dashboard script fully loaded without errors');

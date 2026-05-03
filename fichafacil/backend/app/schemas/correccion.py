@@ -17,21 +17,19 @@ class CorreccionCreate(BaseModel):
 
 class CorreccionApprove(BaseModel):
     """Schema for approving/rejecting a correction."""
-    pin: str = Field(..., min_length=4, max_length=4, pattern=r"^\d{4}$")
+    admin_password: str = Field(..., min_length=1)
     aprobar: bool  # True = approve, False = reject
 
 
 class CorreccionApproveEmpleado(BaseModel):
-    """Schema for employee approving correction with PIN (no JWT)."""
+    """Schema for employee approving correction with a session token."""
     negocio_id: int
-    pin: str = Field(..., min_length=4, max_length=4, pattern=r"^\d{4}$")
     aprobar: bool  # True = approve, False = reject
 
 
 class CorreccionesPendientesEmpleadoRequest(BaseModel):
-    """Schema for employee pending corrections lookup without leaking PIN in URLs."""
+    """Schema for employee pending corrections lookup with a session token."""
     negocio_id: int
-    pin: str = Field(..., min_length=4, max_length=4, pattern=r"^\d{4}$")
 
 
 class CorreccionResponse(BaseModel):

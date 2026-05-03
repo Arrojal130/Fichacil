@@ -8,10 +8,13 @@ __pycache__/
 # Local secrets/configuration (never commit real env files)
 .env
 **/.env
+.env.*
+backend/.env
 *.env.local
 
 # Runtime databases and SQLite sidecars
 backend/data/
+backend/data/fichafacil.db
 *.db
 *.sqlite
 *.sqlite3

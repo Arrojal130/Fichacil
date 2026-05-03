@@ -2,11 +2,11 @@
 FichaFacil MVP - Database Setup
 SQLAlchemy async configuration with SQLite/PostgreSQL support.
 """
-import os
 from pathlib import Path
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from app.config import get_settings
+from app.migrations import apply_migrations
 
 settings = get_settings()
 
@@ -52,9 +52,9 @@ async def get_db():
 
 
 async def init_db():
-    """Initialize database tables."""
+    """Initialize database schema by applying versioned migrations."""
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await apply_migrations(conn)
 
 
 async def close_db():

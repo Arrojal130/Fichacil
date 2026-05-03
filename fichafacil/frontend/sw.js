@@ -3,7 +3,7 @@
  * Enables PWA functionality, offline caching, and push notifications.
  */
 
-const CACHE_NAME = 'fichafacil-v11';  // Remove production debug page from cache
+const CACHE_NAME = 'fichafacil-v15';  // Refresh mobile clients after LAN auth/CORS fixes
 const STATIC_ASSETS = [
   '/',
   '/index.html',

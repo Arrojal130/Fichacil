@@ -3,6 +3,7 @@ FichaFacil MVP - Security Utilities
 JWT tokens, password hashing, PIN hashing.
 """
 from datetime import datetime, timedelta, timezone
+import ipaddress
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -162,6 +163,36 @@ async def get_optional_user(
         return None
 
 
+async def resolve_employee_user(
+    *,
+    current_user: User | None = None,
+    negocio_id: int,
+) -> User:
+    """
+    Resolve an authenticated employee session.
+
+    Employee-facing endpoints now require a real JWT/cookie session. PINs are
+    only accepted at the dedicated login endpoint.
+    """
+    if current_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No autenticado"
+        )
+
+    if current_user.rol != UserRole.EMPLEADO:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requiere autenticación de empleado"
+        )
+    if current_user.negocio_id != negocio_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No autorizado para este negocio"
+        )
+    return current_user
+
+
 # ============================================
 # PIN RATE LIMITING
 # Simple in-memory rate limiter (MVP solution)
@@ -235,16 +266,69 @@ def record_pin_attempt(negocio_id: int, client_ip: str, success: bool) -> None:
             _pin_attempts[key].append(datetime.now(timezone.utc))
 
 
+def _configured_trusted_proxy_networks() -> list[ipaddress._BaseNetwork]:
+    """Return trusted proxy IP ranges configured through TRUSTED_PROXY_IPS."""
+    networks: list[ipaddress._BaseNetwork] = []
+    for raw_entry in settings.trusted_proxy_ips.split(","):
+        entry = raw_entry.strip()
+        if not entry:
+            continue
+        try:
+            networks.append(ipaddress.ip_network(entry, strict=False))
+        except ValueError:
+            # Ignore malformed entries so a typo does not make all proxy headers trusted.
+            continue
+    return networks
+
+
+def _is_trusted_proxy(host: str | None) -> bool:
+    """Return whether the direct peer is an explicitly trusted proxy."""
+    if not host:
+        return False
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return any(ip in network for network in _configured_trusted_proxy_networks())
+
+
+def _first_untrusted_forwarded_for_ip(forwarded_for: str) -> str | None:
+    """Resolve the original client from an X-Forwarded-For chain.
+
+    X-Forwarded-For is ordered as: client, proxy1, proxy2. When the direct
+    peer is trusted, walk the chain from right to left and skip trusted proxy
+    hops, returning the first untrusted address.
+    """
+    candidates = [part.strip() for part in forwarded_for.split(",") if part.strip()]
+    if not candidates:
+        return None
+
+    trusted_networks = _configured_trusted_proxy_networks()
+    for candidate in reversed(candidates):
+        try:
+            ip = ipaddress.ip_address(candidate)
+        except ValueError:
+            continue
+        if not any(ip in network for network in trusted_networks):
+            return str(ip)
+
+    return candidates[0]
+
+
 def get_client_ip(request: Request) -> str:
-    """Extract client IP from request, considering proxies."""
-    # Check for proxy headers
+    """Extract client IP without trusting spoofable proxy headers by default."""
+    direct_client_ip = request.client.host if request.client else "unknown"
+    if not _is_trusted_proxy(direct_client_ip):
+        return direct_client_ip
+
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
-        return forwarded.split(",")[0].strip()
-    
+        resolved_ip = _first_untrusted_forwarded_for_ip(forwarded)
+        if resolved_ip:
+            return resolved_ip
+
     real_ip = request.headers.get("X-Real-IP")
     if real_ip:
-        return real_ip
-    
-    # Fallback to direct client
-    return request.client.host if request.client else "unknown"
+        return real_ip.strip()
+
+    return direct_client_ip

@@ -1,5 +1,6 @@
 # Render.com Blueprint
-# Deploy backend as web service with SQLite persistent disk
+# Deploy backend as web service for demo/pilot use.
+# Production real should use managed PostgreSQL, not the SQLite disk below.
 
 services:
   - type: web
