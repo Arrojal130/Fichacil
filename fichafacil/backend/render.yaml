@@ -1,24 +1,35 @@
 # Render.com Blueprint
-# Deploy backend as web service for demo/pilot use.
-# Production real should use managed PostgreSQL, not the SQLite disk below.
+# Hito 1 MVP: FastAPI backend + managed PostgreSQL, ready to deploy when credentials are available.
 
 services:
   - type: web
     name: fichafacil-api
-    runtime: docker
+    runtime: python
     plan: starter
+    rootDir: fichafacil/backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
+      - key: DEBUG
+        value: false
       - key: SECRET_KEY
         generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: fichafacil-postgres
+          property: connectionString
       - key: CORS_ORIGINS
         value: https://fichafacil.netlify.app
-      - key: DATABASE_URL
-        value: sqlite+aiosqlite:///./data/fichafacil.db
-    disk:
-      name: data
-      mountPath: /app/data
-      sizeGB: 1
+      - key: TRUSTED_PROXY_IPS
+        value: ""
 
+# Managed PostgreSQL is the MVP production baseline. Do not deploy real client data on SQLite.
+databases:
+  - name: fichafacil-postgres
+    plan: starter
+    databaseName: fichafacil
+    user: fichafacil
+
+# Before deploying, replace CORS_ORIGINS with the final Netlify/custom frontend URL.
 # Starter plan avoids free-tier cold starts during demos and client pilots.
-# For production with real data, use managed PostgreSQL plus the backup/restore runbook.
