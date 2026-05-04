@@ -21,7 +21,7 @@ Sistema de control horario para PYMES españolas, diseñado para ayudar al cumpl
 │                  │     │                  │
 │  - index.html    │     │  - FastAPI       │
 │  - empleado.html │     │  - SQLAlchemy    │
-│  - dashboard.html│     │  - SQLite (WAL)  │
+│  - dashboard.html│     │  - PostgreSQL prod│
 │  - Service Worker│     │  - ReportLab PDF │
 └──────────────────┘     └──────────────────┘
 ```
@@ -96,10 +96,12 @@ Frontend disponible en: http://localhost:3000
 4. Seleccionar `backend/` como root
 5. Build command: `pip install -r requirements.txt`
 6. Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-7. Añadir environment variables:
-   - `SECRET_KEY`: (generar con `openssl rand -hex 32`)
-   - `CORS_ORIGINS`: `https://tu-app.netlify.app`
-   - `DATABASE_URL`: usar PostgreSQL gestionado en producción real
+7. Añadir/confirmar environment variables de producción:
+   - `DEBUG=false`
+   - `SECRET_KEY`: valor aleatorio de al menos 32 caracteres (por ejemplo `openssl rand -hex 32`)
+   - `DATABASE_URL`: PostgreSQL gestionado; no usar SQLite para datos reales
+   - `CORS_ORIGINS`: origen HTTPS exacto del frontend, por ejemplo `https://tu-app.netlify.app`
+   - `TRUSTED_PROXY_IPS`: dejar vacío salvo que la plataforma documente rangos de proxy confiables
 
 **Importante:** `backend/.env` y `backend/data/fichafacil.db` solo deben existir en desarrollo o demos locales. No forman parte del flujo normal de producción real.
 
@@ -111,8 +113,10 @@ Frontend disponible en: http://localhost:3000
 
 ### Actualizar URLs
 
-1. En `frontend/js/api.js`, cambiar `API_BASE` a tu URL de Render
-2. En backend `.env`, actualizar `CORS_ORIGINS` con URL de Netlify
+1. En `frontend/netlify.toml`, ajustar el redirect `/api/*` para apuntar al backend HTTPS final de Render si no se usa el valor por defecto del repo.
+2. En las variables de entorno gestionadas del backend, actualizar `CORS_ORIGINS` con la URL HTTPS final de Netlify o del dominio propio.
+
+No edites `frontend/js/api.js` para producción: en localhost/LAN usa `:8000` y en orígenes públicos usa `/api`, evitando mixed content y manteniendo las cookies `HttpOnly` en las peticiones proxied.
 
 ## 🛡️ Operación, backups y retención
 
@@ -148,9 +152,9 @@ La conservación de registros durante 4 años no debe depender solo del disco de
 
 - Contraseñas hasheadas con bcrypt
 - PINes hasheados (nunca en texto plano)
-- JWT con expiración de 30 días
+- Sesión JWT en cookie `HttpOnly`; `Secure` se fuerza cuando `DEBUG=false`
 - Timestamps SIEMPRE del servidor (nunca del cliente)
-- CORS configurado por dominio
+- CORS configurado por origen HTTPS explícito (`CORS_ORIGINS`)
 
 ## 📄 Cumplimiento y validación legal
 
@@ -164,7 +168,7 @@ El sistema está diseñado para ayudar con:
 
 ## 🛠️ Tecnologías
 
-- **Backend**: Python 3.11, FastAPI, SQLAlchemy 2.0, SQLite
+- **Backend**: Python 3.11, FastAPI, SQLAlchemy 2.0, PostgreSQL en producción; SQLite solo local/demo
 - **Frontend**: HTML5, Tailwind CSS, Vanilla JS
 - **PWA**: Service Worker, Web App Manifest
 - **Realtime**: Server-Sent Events (SSE)
