@@ -268,10 +268,11 @@
         
         function startEmpleadoApp() {
         // Shortcuts
+        const auth = window.FichaFacilAPI.auth;
         const fichajesAPI = window.FichaFacilAPI.fichajes;
         const negociosAPI = window.FichaFacilAPI.negocios;
         const correccionesAPI = window.FichaFacilAPI.correcciones;
-        const { getGeolocation, showToast, formatTime, formatDistance, playSound, storeLastFichaje, debounce } = window.FichaFacilUtils;
+        const { getGeolocation, showToast, formatTime, formatDistance, playSound, storeLastFichaje, debounce, escapeHtml } = window.FichaFacilUtils;
         
         // State
         let selectedNegocio = null;
@@ -349,8 +350,8 @@
                         ${esFav ? '⭐' : '☆'}
                     </button>
                     <button class="negocio-item flex-1 bg-white border-2 ${esFav ? 'border-yellow-400' : 'border-gray-200'} hover:border-primary rounded-xl p-4 text-left transition-colors"
-                            data-id="${n.id}" data-nombre="${n.nombre}" data-slug="${n.slug}">
-                        <div class="font-semibold text-gray-800">${n.nombre}</div>
+                            data-id="${n.id}" data-nombre="${escapeHtml(n.nombre)}" data-slug="${escapeHtml(n.slug)}">
+                        <div class="font-semibold text-gray-800">${escapeHtml(n.nombre)}</div>
                     </button>
                 </div>
             `}).join('');
@@ -440,15 +441,16 @@
                     updateGeolocStatus(loc);
                 });
                 
-                // Validate PIN by getting last fichaje
-                const ultimo = await fichajesAPI.getUltimo(selectedNegocio.id, currentPin);
-                
-                // PIN is valid - proceed to clock screen
-                validatedEmpleado = { pin: currentPin };
+                // Login and keep only a short-lived session token in memory
+                await auth.loginEmpleado(selectedNegocio.id, currentPin);
+                validatedEmpleado = { token: true };
+                pinInput.value = '';
+                currentPin = '';
                 
                 document.getElementById('negocio-nombre-final').textContent = selectedNegocio.nombre;
                 
                 // Show last fichaje if exists
+                const ultimo = await fichajesAPI.getUltimo(selectedNegocio.id);
                 if (ultimo) {
                     document.getElementById('last-fichaje').classList.remove('hidden');
                     document.getElementById('last-fichaje-info').textContent = 
@@ -504,7 +506,6 @@
             try {
                 const result = await fichajesAPI.fichar(
                     selectedNegocio.id,
-                    currentPin,
                     tipo,
                     currentLocation?.lat,
                     currentLocation?.lon
@@ -583,6 +584,7 @@
         
         document.getElementById('btn-ok').addEventListener('click', () => {
             // Reset to PIN screen for another employee or same employee
+            auth.clearSessionToken();
             stepSuccess.classList.add('hidden');
             stepPin.classList.remove('hidden');
             pinInput.value = '';
@@ -591,6 +593,7 @@
         });
         
         document.getElementById('btn-cambiar-usuario').addEventListener('click', () => {
+            auth.clearSessionToken();
             stepFichar.classList.add('hidden');
             stepPin.classList.remove('hidden');
             pinInput.value = '';
@@ -612,7 +615,7 @@
             const list = document.getElementById('correcciones-list');
             
             try {
-                const correcciones = await correccionesAPI.getPendientesEmpleado(selectedNegocio.id, currentPin);
+                const correcciones = await correccionesAPI.getPendientesEmpleado(selectedNegocio.id);
                 
                 if (correcciones.length === 0) {
                     container.classList.add('hidden');
@@ -650,15 +653,15 @@
             return `
                 <div class="bg-white rounded-lg p-3 shadow-sm border border-yellow-100" data-correccion-id="${c.id}">
                     <div class="text-sm text-gray-600 mb-1">
-                        <span class="font-medium">${c.creador_nombre}</span> propone corregir:
+                        <span class="font-medium">${escapeHtml(c.creador_nombre)}</span> propone corregir:
                     </div>
                     <div class="text-sm mb-2">
                         <div class="line-through text-gray-400">${fechaOriginal}</div>
                         <div class="text-green-700 font-medium">→ ${fechaCorregida}</div>
                     </div>
                     <div class="text-sm text-gray-600 mb-2">
-                        <span class="font-medium">Motivo:</span> ${c.motivo}
-                        ${c.detalle ? `<br><span class="italic">"${c.detalle}"</span>` : ''}
+                        <span class="font-medium">Motivo:</span> ${escapeHtml(c.motivo)}
+                        ${c.detalle ? `<br><span class="italic">"${escapeHtml(c.detalle)}"</span>` : ''}
                     </div>
                     <div class="flex gap-2">
                         <button class="btn-aprobar flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-3 rounded-lg text-sm font-medium" 
@@ -683,7 +686,7 @@
             buttons.forEach(btn => btn.disabled = true);
             
             try {
-                await correccionesAPI.aprobarEmpleado(correccionId, selectedNegocio.id, currentPin, aprobar);
+                await correccionesAPI.aprobarEmpleado(correccionId, selectedNegocio.id, aprobar);
                 
                 showToast(aprobar ? 'Corrección aprobada' : 'Corrección rechazada', 'success');
                 
@@ -703,7 +706,7 @@
                 // Refresh last fichaje info if approved
                 if (aprobar) {
                     try {
-                        const ultimo = await fichajesAPI.getUltimo(selectedNegocio.id, currentPin);
+                        const ultimo = await fichajesAPI.getUltimo(selectedNegocio.id);
                         if (ultimo) {
                             document.getElementById('last-fichaje').classList.remove('hidden');
                             document.getElementById('last-fichaje-info').textContent = 
@@ -745,7 +748,7 @@
             content.innerHTML = '<p class="p-4 text-center text-gray-500">Cargando...</p>';
             
             try {
-                const fichajes = await fichajesAPI.getHistorialEmpleado(selectedNegocio.id, currentPin, 7);
+                const fichajes = await fichajesAPI.getHistorialEmpleado(selectedNegocio.id, 7);
                 
                 if (fichajes.length === 0) {
                     content.innerHTML = '<p class="p-4 text-center text-gray-500">No hay fichajes recientes</p>';

@@ -3,7 +3,7 @@ FichaFacil MVP - Correccion Schemas
 Validation and serialization for correction records.
 """
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from app.models.correccion import EstadoCorreccion, MotivoCorreccion
 
 
@@ -17,15 +17,19 @@ class CorreccionCreate(BaseModel):
 
 class CorreccionApprove(BaseModel):
     """Schema for approving/rejecting a correction."""
-    pin: str = Field(..., min_length=4, max_length=4, pattern=r"^\d{4}$")
+    admin_password: str = Field(..., min_length=1)
     aprobar: bool  # True = approve, False = reject
 
 
 class CorreccionApproveEmpleado(BaseModel):
-    """Schema for employee approving correction with PIN (no JWT)."""
+    """Schema for employee approving correction with a session token."""
     negocio_id: int
-    pin: str = Field(..., min_length=4, max_length=4, pattern=r"^\d{4}$")
     aprobar: bool  # True = approve, False = reject
+
+
+class CorreccionesPendientesEmpleadoRequest(BaseModel):
+    """Schema for employee pending corrections lookup with a session token."""
+    negocio_id: int
 
 
 class CorreccionResponse(BaseModel):
@@ -43,9 +47,7 @@ class CorreccionResponse(BaseModel):
     aprobador_nombre: str | None
     created_at: datetime
     resolved_at: datetime | None
-    
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CorreccionPendiente(BaseModel):

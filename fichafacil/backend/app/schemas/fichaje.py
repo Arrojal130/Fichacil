@@ -3,17 +3,27 @@ FichaFacil MVP - Fichaje Schemas
 Validation and serialization for clock records.
 """
 from datetime import datetime, date
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from app.models.fichaje import TipoFichaje
 
 
 class FichajeCreate(BaseModel):
     """Schema for creating a clock record (employee)."""
     negocio_id: int
-    pin: str = Field(..., min_length=4, max_length=4, pattern=r"^\d{4}$")
+    pin: str | None = Field(None, min_length=4, max_length=4, pattern=r"^\d{4}$")
     tipo: TipoFichaje
     lat: float | None = Field(None, ge=-90, le=90)
     lon: float | None = Field(None, ge=-180, le=180)
+
+
+class EmpleadoPinRequest(BaseModel):
+    """Schema for employee session-authenticated reads."""
+    negocio_id: int
+
+
+class HistorialEmpleadoRequest(EmpleadoPinRequest):
+    """Schema for employee history lookup."""
+    dias: int = Field(7, ge=1, le=366)
 
 
 class FichajeResponse(BaseModel):
@@ -27,9 +37,7 @@ class FichajeResponse(BaseModel):
     empleado_id: int
     negocio_id: int
     created_at: datetime
-    
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class FichajeConEmpleado(FichajeResponse):

@@ -1,7 +1,11 @@
 # Dockerfile for FichaFácil Backend
-# Optimized for Render.com free tier
+# Optimized for Render.com and other container platforms
 
 FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=8000
 
 WORKDIR /app
 
@@ -12,11 +16,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Create data directory for SQLite
-RUN mkdir -p /app/data
+# Create data directory for SQLite and run as non-root
+RUN mkdir -p /app/data \
+    && useradd --create-home --shell /usr/sbin/nologin appuser \
+    && chown -R appuser:appuser /app
 
-# Expose port
+USER appuser
+
+# Expose the container port used by local defaults and some platforms
 EXPOSE 8000
 
-# Run with uvicorn
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run with uvicorn using the platform-provided port when available
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers"]

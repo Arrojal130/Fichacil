@@ -3,13 +3,12 @@
  * Enables PWA functionality, offline caching, and push notifications.
  */
 
-const CACHE_NAME = 'fichafacil-v10';  // Incremented after api.js BASE_URL fix
+const CACHE_NAME = 'fichafacil-v15';  // Refresh mobile clients after LAN auth/CORS fixes
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/empleado.html',
   '/dashboard.html',
-  '/debug.html',
   '/js/api.js',
   '/js/utils.js',
   '/manifest.json'

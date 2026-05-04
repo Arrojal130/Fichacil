@@ -43,6 +43,18 @@ async function getGeolocation(timeout = 10000) {
 /**
  * Format date for display.
  */
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+/**
+ * Format date for display.
+ */
 function formatDate(dateStr) {
     const date = new Date(dateStr);
     return date.toLocaleDateString('es-ES', {
@@ -232,6 +244,7 @@ function getSession(key) {
 // Export utilities
 window.FichaFacilUtils = {
     getGeolocation,
+    escapeHtml,
     formatDate,
     formatTime,
     formatDateTime,

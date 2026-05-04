@@ -1,6 +1,6 @@
 # 🕐 FichaFácil MVP
 
-Sistema de control horario para PYMES españolas, conforme al RD 318/2021.
+Sistema de control horario para PYMES españolas, diseñado para ayudar al cumplimiento del registro horario.
 
 ## 🎯 Características
 
@@ -8,7 +8,7 @@ Sistema de control horario para PYMES españolas, conforme al RD 318/2021.
 - ✅ **PWA instalable** - Funciona como app nativa en móvil
 - ✅ **Dashboard realtime** - Actualización en tiempo real vía SSE
 - ✅ **Correcciones con aprobación mutua** - Auditoría completa
-- ✅ **PDF legal** - Exportación conforme a RD 318/2021
+- ✅ **PDF de registro** - Exportación diseñada para revisión laboral
 - ✅ **Multi-tenant** - Múltiples negocios independientes
 - ✅ **Infraestructura $0** - Render.com + Netlify free tier
 
@@ -21,7 +21,7 @@ Sistema de control horario para PYMES españolas, conforme al RD 318/2021.
 │                  │     │                  │
 │  - index.html    │     │  - FastAPI       │
 │  - empleado.html │     │  - SQLAlchemy    │
-│  - dashboard.html│     │  - SQLite (WAL)  │
+│  - dashboard.html│     │  - PostgreSQL prod│
 │  - Service Worker│     │  - ReportLab PDF │
 └──────────────────┘     └──────────────────┘
 ```
@@ -41,7 +41,7 @@ venv\Scripts\activate  # Windows
 # Instalar dependencias
 pip install -r requirements.txt
 
-# Configurar variables de entorno
+# Configurar variables de entorno (solo local)
 copy .env.example .env
 # Editar .env con tu SECRET_KEY
 
@@ -92,13 +92,18 @@ Frontend disponible en: http://localhost:3000
 
 1. Crear cuenta en [render.com](https://render.com)
 2. Conectar repositorio GitHub
-3. Crear nuevo "Web Service"
+3. Crear nuevo "Web Service" para producción real o un entorno de demo/piloto
 4. Seleccionar `backend/` como root
 5. Build command: `pip install -r requirements.txt`
 6. Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-7. Añadir environment variables:
-   - `SECRET_KEY`: (generar con `openssl rand -hex 32`)
-   - `CORS_ORIGINS`: `https://tu-app.netlify.app`
+7. Añadir/confirmar environment variables de producción:
+   - `DEBUG=false`
+   - `SECRET_KEY`: valor aleatorio de al menos 32 caracteres (por ejemplo `openssl rand -hex 32`)
+   - `DATABASE_URL`: PostgreSQL gestionado; no usar SQLite para datos reales
+   - `CORS_ORIGINS`: origen HTTPS exacto del frontend, por ejemplo `https://tu-app.netlify.app`
+   - `TRUSTED_PROXY_IPS`: dejar vacío salvo que la plataforma documente rangos de proxy confiables
+
+**Importante:** `backend/.env` y `backend/data/fichafacil.db` solo deben existir en desarrollo o demos locales. No forman parte del flujo normal de producción real.
 
 ### Frontend → Netlify
 
@@ -108,8 +113,16 @@ Frontend disponible en: http://localhost:3000
 
 ### Actualizar URLs
 
-1. En `frontend/js/api.js`, cambiar `API_BASE` a tu URL de Render
-2. En backend `.env`, actualizar `CORS_ORIGINS` con URL de Netlify
+1. En `frontend/netlify.toml`, ajustar el redirect `/api/*` para apuntar al backend HTTPS final de Render si no se usa el valor por defecto del repo.
+2. En las variables de entorno gestionadas del backend, actualizar `CORS_ORIGINS` con la URL HTTPS final de Netlify o del dominio propio.
+
+No edites `frontend/js/api.js` para producción: en localhost/LAN usa `:8000` y en orígenes públicos usa `/api`, evitando mixed content y manteniendo las cookies `HttpOnly` en las peticiones proxied.
+
+## 🛡️ Operación, backups y retención
+
+Antes de usar FichaFácil con clientes reales, revisa y ejecuta el runbook de backup/restore: [`docs/ops/backup-restore.md`](docs/ops/backup-restore.md).
+
+La conservación de registros durante 4 años no debe depender solo del disco del servicio web: requiere backups externos, cifrados y restores probados periódicamente.
 
 ## 📋 API Endpoints
 
@@ -139,13 +152,13 @@ Frontend disponible en: http://localhost:3000
 
 - Contraseñas hasheadas con bcrypt
 - PINes hasheados (nunca en texto plano)
-- JWT con expiración de 30 días
+- Sesión JWT en cookie `HttpOnly`; `Secure` se fuerza cuando `DEBUG=false`
 - Timestamps SIEMPRE del servidor (nunca del cliente)
-- CORS configurado por dominio
+- CORS configurado por origen HTTPS explícito (`CORS_ORIGINS`)
 
-## 📄 Cumplimiento Legal (RD 318/2021)
+## 📄 Cumplimiento y validación legal
 
-El sistema cumple con:
+El sistema está diseñado para ayudar con:
 
 1. **Registro diario** - Hora exacta de inicio y fin de jornada
 2. **Conservación 4 años** - Base de datos con backup
@@ -155,7 +168,7 @@ El sistema cumple con:
 
 ## 🛠️ Tecnologías
 
-- **Backend**: Python 3.11, FastAPI, SQLAlchemy 2.0, SQLite
+- **Backend**: Python 3.11, FastAPI, SQLAlchemy 2.0, PostgreSQL en producción; SQLite solo local/demo
 - **Frontend**: HTML5, Tailwind CSS, Vanilla JS
 - **PWA**: Service Worker, Web App Manifest
 - **Realtime**: Server-Sent Events (SSE)

@@ -7,9 +7,13 @@
 (function() {
 'use strict';
 
-// API Base URL - Dynamic for LAN/iPhone support
-// Always use same hostname as frontend but port 8000 for backend
-const API_BASE = `http://${window.location.hostname}:8000`;
+// API Base URL - direct backend for local/LAN, proxy path in production
+const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1']);
+const PRIVATE_IP_REGEX = /^(?:10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[0-1])\.)/;
+const IS_LOCAL_OR_LAN_HOST = LOCAL_HOSTNAMES.has(window.location.hostname) || PRIVATE_IP_REGEX.test(window.location.hostname);
+const API_BASE = IS_LOCAL_OR_LAN_HOST
+    ? `${window.location.protocol}//${window.location.hostname}:8000`
+    : '/api';
 
 console.log('🔌 API Configuration:');
 console.log('   Frontend:', window.location.origin);
@@ -26,7 +30,7 @@ async function apiRequest(endpoint, options = {}) {
         headers: {
             'Content-Type': 'application/json',
         },
-        credentials: 'include', // Include cookies for JWT
+        credentials: 'include', // Send HttpOnly session cookies for auth
     };
     
     // Merge options
@@ -39,17 +43,10 @@ async function apiRequest(endpoint, options = {}) {
         },
     };
     
-    // Add auth token if exists
-    const token = localStorage.getItem('token');
-    if (token) {
-        finalOptions.headers['Authorization'] = `Bearer ${token}`;
-    }
-    
     try {
         console.log('🌐 API Request:', {
             method: finalOptions.method || 'GET',
             url: url,
-            hasToken: !!token
         });
         
         const response = await fetch(url, finalOptions);
@@ -94,10 +91,11 @@ async function apiRequest(endpoint, options = {}) {
         });
         
         // Check if it's a network error (can't reach backend)
-        if (error.message.includes('fetch') || error.message.includes('NetworkError')) {
+        if (error.message.includes('fetch') || error.message.includes('NetworkError') || error instanceof TypeError) {
             console.error('🔴 Network Error: Cannot reach backend at', API_BASE);
             console.error('   - Check if backend is running: uvicorn app.main:app --host 0.0.0.0 --port 8000');
             console.error('   - Check if PC IP is correct:', window.location.hostname);
+            throw new Error('No se ha podido contactar con FichaFácil. El fichaje no se ha registrado todavía. Reintenta en unos segundos.');
         }
         
         throw error;
@@ -110,31 +108,26 @@ async function apiRequest(endpoint, options = {}) {
 const authAPI = {
     // Register new business with admin
     async register(data) {
-        const result = await apiRequest('/auth/register', {
+        return await apiRequest('/auth/register', {
             method: 'POST',
             body: JSON.stringify(data),
         });
-        localStorage.setItem('token', result.access_token);
-        return result;
     },
     
     // Admin login
     async loginAdmin(email, password) {
-        const result = await apiRequest('/auth/login/admin', {
+        return await apiRequest('/auth/login/admin', {
             method: 'POST',
             body: JSON.stringify({ email, password }),
         });
-        localStorage.setItem('token', result.access_token);
-        return result;
     },
     
-    // Employee login (returns token but usually not stored)
+    // Employee login (uses PIN only for the initial session bootstrap)
     async loginEmpleado(negocioId, pin) {
-        const result = await apiRequest('/auth/login/empleado', {
+        return await apiRequest('/auth/login/empleado', {
             method: 'POST',
             body: JSON.stringify({ negocio_id: negocioId, pin: pin }),
         });
-        return result;
     },
     
     // Get current user
@@ -145,12 +138,15 @@ const authAPI = {
     // Logout
     async logout() {
         await apiRequest('/auth/logout', { method: 'POST' });
-        localStorage.removeItem('token');
     },
     
-    // Check if logged in
+    // HttpOnly cookies cannot be read from JS; callers should probe /auth/me.
     isLoggedIn() {
-        return !!localStorage.getItem('token');
+        return true;
+    },
+
+    clearSessionToken() {
+        return this.logout().catch(() => {});
     }
 };
 
@@ -214,13 +210,12 @@ const negociosAPI = {
  * Fichajes API
  */
 const fichajesAPI = {
-    // Create fichaje (employee)
-    async fichar(negocioId, pin, tipo, lat = null, lon = null) {
+    // Create fichaje (employee session)
+    async fichar(negocioId, tipo, lat = null, lon = null) {
         return await apiRequest('/fichajes/', {
             method: 'POST',
             body: JSON.stringify({
                 negocio_id: negocioId,
-                pin: pin,
                 tipo: tipo, // "ENTRADA" or "SALIDA"
                 lat: lat,
                 lon: lon,
@@ -229,8 +224,13 @@ const fichajesAPI = {
     },
     
     // Get last fichaje
-    async getUltimo(negocioId, pin) {
-        return await apiRequest(`/fichajes/ultimo?negocio_id=${negocioId}&pin=${pin}`);
+    async getUltimo(negocioId) {
+        return await apiRequest('/fichajes/ultimo', {
+            method: 'POST',
+            body: JSON.stringify({
+                negocio_id: negocioId,
+            }),
+        });
     },
     
     // Get today's fichajes (admin)
@@ -245,9 +245,15 @@ const fichajesAPI = {
         return await apiRequest(url);
     },
     
-    // Get fichaje history for employee (PIN auth)
-    async getHistorialEmpleado(negocioId, pin, dias = 7) {
-        return await apiRequest(`/fichajes/historial-empleado?negocio_id=${negocioId}&pin=${encodeURIComponent(pin)}&dias=${dias}`);
+    // Get fichaje history for employee (session auth)
+    async getHistorialEmpleado(negocioId, dias = 7) {
+        return await apiRequest('/fichajes/historial-empleado', {
+            method: 'POST',
+            body: JSON.stringify({
+                negocio_id: negocioId,
+                dias: dias,
+            }),
+        });
     }
 };
 
@@ -268,11 +274,11 @@ const correccionesAPI = {
         return await apiRequest('/correcciones/pendientes');
     },
     
-    // Approve/reject correction
-    async aprobar(id, pin, aprobar) {
+    // Approve/reject correction with admin password re-authentication
+    async aprobar(id, adminPassword, aprobar) {
         return await apiRequest(`/correcciones/${id}/aprobar`, {
             method: 'POST',
-            body: JSON.stringify({ pin, aprobar }),
+            body: JSON.stringify({ admin_password: adminPassword, aprobar }),
         });
     },
     
@@ -284,21 +290,25 @@ const correccionesAPI = {
     },
     
     // ========================================
-    // EMPLOYEE METHODS (PIN authentication, no JWT)
+    // EMPLOYEE METHODS (session authentication)
     // ========================================
     
-    // Get pending corrections for employee (PIN auth)
-    async getPendientesEmpleado(negocioId, pin) {
-        return await apiRequest(`/correcciones/pendientes-empleado?negocio_id=${negocioId}&pin=${encodeURIComponent(pin)}`);
+    // Get pending corrections for employee (session auth)
+    async getPendientesEmpleado(negocioId) {
+        return await apiRequest('/correcciones/pendientes-empleado', {
+            method: 'POST',
+            body: JSON.stringify({
+                negocio_id: negocioId,
+            }),
+        });
     },
     
-    // Approve/reject correction as employee (PIN auth)
-    async aprobarEmpleado(correccionId, negocioId, pin, aprobar) {
+    // Approve/reject correction as employee (session auth)
+    async aprobarEmpleado(correccionId, negocioId, aprobar) {
         return await apiRequest(`/correcciones/${correccionId}/aprobar-empleado`, {
             method: 'POST',
             body: JSON.stringify({ 
-                negocio_id: negocioId, 
-                pin: pin, 
+                negocio_id: negocioId,
                 aprobar: aprobar 
             }),
         });
@@ -333,7 +343,9 @@ const pdfAPI = {
  */
 function connectSSE(negocioId, onEvent) {
     const url = `${API_BASE}/sse/${negocioId}`;
-    const eventSource = new EventSource(url);
+    // SSE must carry the HttpOnly session cookie when the frontend talks to the
+    // API on a different origin (local/LAN production preview).
+    const eventSource = new EventSource(url, { withCredentials: true });
     
     eventSource.onopen = () => {
         console.log('✅ SSE connected');

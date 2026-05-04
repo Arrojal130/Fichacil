@@ -6,12 +6,13 @@ import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import AsyncGenerator
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from sse_starlette.sse import EventSourceResponse
 from app.config import get_settings
 from app.database import init_db, close_db
+from app.models.user import User
 from app.routers import (
     auth_router,
     negocios_router,
@@ -19,6 +20,7 @@ from app.routers import (
     correcciones_router,
     pdf_router
 )
+from app.utils.security import get_current_user
 
 settings = get_settings()
 
@@ -40,32 +42,29 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.app_name,
-    description="MVP de registro horario legal para negocios",
+    description="MVP diseñado para ayudar al registro horario de negocios",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    docs_url="/docs" if settings.debug else None,
+    redoc_url="/redoc" if settings.debug else None,
+    openapi_url="/openapi.json" if settings.debug else None,
 )
 
-# CORS configuration for iPhone + LAN + Local dev
-origins = settings.allowed_origins.split(",")
+# CORS configuration for local development and deployed frontends
+origins = settings.effective_allowed_origins
+origin_regex = settings.cors_origin_regex
 
-# In debug mode, also allow any LAN IP (192.168.x.x, 10.x.x.x) on port 3000
-if settings.debug:
-    import re
-    # Add regex patterns for common LAN IPs
-    origins.extend([
-        re.compile(r"http://192\.168\.\d+\.\d+:3000"),  # 192.168.x.x
-        re.compile(r"http://10\.\d+\.\d+\.\d+:3000"),   # 10.x.x.x
-        re.compile(r"http://172\.\d+\.\d+\.\d+:3000"),  # 172.x.x.x
-    ])
-    print(f"🔌 CORS: Debug mode - Accepting any LAN IP on port 3000")
+if origin_regex:
+    print("🔌 CORS: Debug mode - Accepting RFC1918 LAN IPs on port 3000")
 
-print(f"🔌 CORS explicit origins: {[o for o in origins if isinstance(o, str)]}")
+print(f"🔌 CORS explicit origins: {origins}")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # Mix of strings and regex patterns
+    allow_origins=origins,
+    allow_origin_regex=origin_regex,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
 )
 
@@ -121,8 +120,21 @@ async def event_generator(
                 del sse_connections[negocio_id]
 
 
+def authorize_sse_access(*, current_user: User, negocio_id: int) -> None:
+    """Ensure SSE subscriptions stay within the authenticated user's business."""
+    if current_user.negocio_id != negocio_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No autorizado para acceder al canal de este negocio"
+        )
+
+
 @app.get("/sse/{negocio_id}")
-async def sse_endpoint(request: Request, negocio_id: int):
+async def sse_endpoint(
+    request: Request,
+    negocio_id: int,
+    current_user: User = Depends(get_current_user),
+):
     """
     SSE endpoint for realtime dashboard updates.
     
@@ -131,6 +143,7 @@ async def sse_endpoint(request: Request, negocio_id: int):
     - Fichaje is corrected
     - Alerts are generated
     """
+    authorize_sse_access(current_user=current_user, negocio_id=negocio_id)
     return EventSourceResponse(event_generator(request, negocio_id))
 
 
@@ -180,13 +193,11 @@ async def root():
     </head>
     <body>
         <h1>🕐 FichaFácil API</h1>
-        <p>MVP de registro horario legal para negocios.</p>
+        <p>MVP diseñado para ayudar al registro horario de negocios.</p>
         <ul>
-            <li><a href="/docs">📚 Documentación API (Swagger)</a></li>
-            <li><a href="/redoc">📖 Documentación API (ReDoc)</a></li>
             <li><a href="/health">❤️ Health Check</a></li>
         </ul>
-        <p><small>Versión 1.0.0 | RD 318/2021 compliant</small></p>
+        <p><small>Versión 1.0.0 | Pendiente de validación legal definitiva</small></p>
     </body>
     </html>
     """
