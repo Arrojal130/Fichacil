@@ -18,11 +18,13 @@ from app.config import Settings
 
 class SettingsCorsTests(unittest.TestCase):
     def setUp(self):
+        for key in ["DEBUG", "ALLOWED_ORIGINS", "CORS_ORIGINS", "SECRET_KEY", "DATABASE_URL"]:
+            os.environ.pop(key, None)
         for module_name in ["app.main", "app.config"]:
             sys.modules.pop(module_name, None)
 
     def tearDown(self):
-        for key in ["DEBUG", "ALLOWED_ORIGINS", "CORS_ORIGINS", "SECRET_KEY"]:
+        for key in ["DEBUG", "ALLOWED_ORIGINS", "CORS_ORIGINS", "SECRET_KEY", "DATABASE_URL"]:
             os.environ.pop(key, None)
         for module_name in ["app.main", "app.config"]:
             sys.modules.pop(module_name, None)
