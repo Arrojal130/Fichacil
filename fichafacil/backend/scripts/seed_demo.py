@@ -27,7 +27,7 @@ from app.models.user import User, UserRole
 from app.utils.security import hash_password, hash_pin
 
 DEMO_SLUG = "demo-fichafacil"
-ADMIN_EMAIL = "gestion@test.local"
+ADMIN_EMAIL = "gestion@example.com"
 ADMIN_PASSWORD = "Test1234!"
 EMPLOYEE_1_DNI = "00000001T"
 EMPLOYEE_1_PIN = "1111"
@@ -87,7 +87,7 @@ async def seed_demo() -> None:
 
 
 def print_credentials() -> None:
-    print("Admin: gestion@test.local / Test1234!")
+    print("Admin: gestion@example.com / Test1234!")
     print("Empleado 1: DNI 00000001T / PIN 1111")
     print("Empleado 2: DNI 00000002R / PIN 2222")
 

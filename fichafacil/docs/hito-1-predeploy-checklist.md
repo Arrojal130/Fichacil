@@ -73,7 +73,7 @@ DATABASE_URL=<database-url> DEBUG=false SECRET_KEY=<secret> python scripts/seed_
 Crea o reutiliza:
 
 - Negocio: `demo-fichafacil`
-- Admin: `gestion@test.local` / `Test1234!`
+- Admin: `gestion@example.com` / `Test1234!`
 - Empleado 1: DNI `00000001T` / PIN `1111`
 - Empleado 2: DNI `00000002R` / PIN `2222`
 

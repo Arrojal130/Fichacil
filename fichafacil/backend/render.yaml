@@ -1,11 +1,14 @@
 # Render.com Blueprint
-# Hito 1 MVP: FastAPI backend + managed PostgreSQL, ready to deploy when credentials are available.
+# Free pilot: FastAPI backend + managed PostgreSQL on free plans when available.
+# This is intended for a small controlled pilot, not paid-client production.
 
 services:
   - type: web
     name: fichafacil-api
     runtime: python
-    plan: starter
+    # Free plan is acceptable only for a controlled pilot: cold starts and limits are expected.
+    # Upgrade to starter before relying on this for daily business-critical use.
+    plan: free
     rootDir: fichafacil/backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
@@ -20,16 +23,17 @@ services:
           name: fichafacil-postgres
           property: connectionString
       - key: CORS_ORIGINS
-        value: https://fichafacil.netlify.app
+        value: https://fichafacil-demo.netlify.app
       - key: TRUSTED_PROXY_IPS
         value: ""
 
-# Managed PostgreSQL is the MVP production baseline. Do not deploy real client data on SQLite.
+# Managed PostgreSQL is still preferred over SQLite, even for the free pilot.
+# Free database availability/retention depends on Render's current plan limits.
 databases:
   - name: fichafacil-postgres
-    plan: starter
+    plan: free
     databaseName: fichafacil
     user: fichafacil
 
 # Before deploying, replace CORS_ORIGINS with the final Netlify/custom frontend URL.
-# Starter plan avoids free-tier cold starts during demos and client pilots.
+# Upgrade both web service and database to paid plans before treating this as production.
