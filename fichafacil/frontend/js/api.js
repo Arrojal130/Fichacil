@@ -20,6 +20,27 @@ console.log('   Frontend:', window.location.origin);
 console.log('   Backend API_BASE:', API_BASE);
 console.log('   Hostname:', window.location.hostname);
 
+
+/**
+ * Convert FastAPI/Pydantic error payloads into user-readable text.
+ */
+function formatApiError(data) {
+    const detail = data?.detail ?? data?.message ?? data;
+
+    if (Array.isArray(detail)) {
+        return detail
+            .map(item => item?.msg || item?.message || JSON.stringify(item))
+            .join('
+') || 'Error en la solicitud';
+    }
+
+    if (detail && typeof detail === 'object') {
+        return detail.msg || detail.message || JSON.stringify(detail);
+    }
+
+    return detail || 'Error en la solicitud';
+}
+
 /**
  * Make an API request with error handling.
  */
@@ -78,7 +99,7 @@ async function apiRequest(endpoint, options = {}) {
         }
         
         if (!response.ok) {
-            throw new Error(data.detail || data.message || 'Error en la solicitud');
+            throw new Error(formatApiError(data));
         }
         
         return data;

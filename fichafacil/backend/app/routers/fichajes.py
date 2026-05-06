@@ -221,6 +221,7 @@ async def get_fichajes_hoy(
         entrada = None
         salida = None
         distancia = None
+        ultimo_fichaje_id = fichajes[-1].id if fichajes else None
         
         for f in fichajes:
             if f.tipo == TipoFichaje.ENTRADA:
@@ -282,6 +283,7 @@ async def get_fichajes_hoy(
             salida=salida,
             horas_trabajadas=horas,
             distancia_metros=distancia,
+            ultimo_fichaje_id=ultimo_fichaje_id,
             estado=estado,
             alerta=alerta
         ))

@@ -65,6 +65,7 @@ class DashboardFichaje(BaseModel):
     salida: datetime | None
     horas_trabajadas: str | None
     distancia_metros: float | None
+    ultimo_fichaje_id: int | None = None
     estado: str  # "completo", "pendiente_salida", "no_fichado"
     alerta: str | None  # "lejos", "sin_salida_ayer", etc.
 
